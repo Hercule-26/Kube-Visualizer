@@ -57,15 +57,6 @@
         />
 
         <UButton
-          :icon="paused ? 'i-lucide-play' : 'i-lucide-pause'"
-          :color="paused ? 'warning' : 'neutral'"
-          variant="ghost"
-          size="sm"
-          :aria-label="paused ? 'Resume' : 'Pause'"
-          @click="paused = !paused"
-        />
-
-        <UButton
           :icon="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'"
           color="neutral"
           variant="ghost"
@@ -81,8 +72,6 @@
 <script setup lang="ts">
 const clusterStore = useClusterStore()
 const colorMode = useColorMode()
-
-const paused = ref(false)
 
 function toggleTheme() {
   colorMode.preference =
