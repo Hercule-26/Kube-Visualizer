@@ -68,7 +68,6 @@
 </template>
 
 <script setup lang="ts">
-const store = useClusterStore()
 const open = ref(false)
 
 const STATES = [
@@ -103,12 +102,4 @@ const STATES = [
     color: 'bg-blue-500',
   },
 ] as const
-
-const trafficMeasured = computed(
-  () => store.capabilities?.traffic === 'measured',
-)
-
-const discovering = computed(
-  () => store.capabilities?.connectionDiscovery === true,
-)
 </script>
