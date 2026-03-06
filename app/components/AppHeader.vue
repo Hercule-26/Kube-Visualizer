@@ -8,7 +8,7 @@
   >
     <template #title>
       <div class="flex items-center gap-2.5">
-        <div class="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <div class="flex size-8 items-center justify-center rounded-lg bg-info/10 text-info">
           <UIcon name="i-lucide-box" class="size-5 text-info" />
         </div>
         <div class="leading-tight">

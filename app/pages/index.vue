@@ -1,23 +1,42 @@
 <template>
-  <div class="absolute inset-0 overflow-hidden">
-    <ClientOnly>
-      <GraphCanvas ref="canvasRef" />
-      <template #fallback>
-        <div class="flex h-full items-center justify-center text-sm text-dimmed">
-          <UIcon name="i-lucide-loader" class="mr-2 size-4 animate-spin" />
-          Loading the cluster graph…
-        </div>
-      </template>
-    </ClientOnly>
+  <div class="absolute inset-0 overflow-hidden bg-[#0b0f14]">
+    <svg ref="svgRef" class="kv-canvas h-full w-full"></svg>
 
+    <Transition enter-active-class="transition-opacity duration-200" enter-from-class="opacity-0"
+      enter-to-class="opacity-100" leave-active-class="transition-opacity duration-200" leave-from-class="opacity-100"
+      leave-to-class="opacity-0">
+      <div v-if="isLoading"
+        class="absolute inset-0 z-20 flex items-center justify-center bg-canvas-bg/30 backdrop-blur-[2px]">
+        <div class="
+            flex items-center gap-3
+            rounded-xl
+            border border-white/10
+            bg-gray-900
+            px-5 py-3.5
+            shadow-xl shadow-black/20
+          ">
+          <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin text-blue-400" />
+
+          <div>
+            <p class="text-sm font-medium text-white">
+              Loading cluster
+            </p>
+
+            <p class="mt-0.5 text-[11px] text-white/50">
+              Building graph…
+            </p>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Controls -->
     <div class="pointer-events-none absolute right-3 top-3 z-10">
-      <GraphControls
-        @zoom-in="canvasRef?.zoomIn()"
-        @zoom-out="canvasRef?.zoomOut()"
-        @fit="canvasRef?.fitToContent(true)"
-      />
+      <GraphControls @zoom-in="canvasRef?.zoomIn()" @zoom-out="canvasRef?.zoomOut()"
+        @fit="canvasRef?.fitToContent(true)" />
     </div>
 
+    <!-- Legend -->
     <div class="pointer-events-none absolute bottom-3 left-3 z-10">
       <Legend />
     </div>
@@ -26,8 +45,16 @@
 
 <script setup lang="ts">
 const canvasRef = ref<{
-  fitToContent: (animated?: boolean) => void,
-  zoomIn: () => void,
-  zoomOut: () => void,
+  fitToContent: (animated?: boolean) => void
+  zoomIn: () => void
+  zoomOut: () => void
 } | null>(null)
+
+const isLoading = ref(true)
+
+onMounted(() => {
+  setTimeout(() => {
+    isLoading.value = false
+  }, 3000)
+})
 </script>
