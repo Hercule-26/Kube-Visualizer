@@ -2,6 +2,7 @@
   <div class="absolute inset-0 overflow-hidden bg-[#0b0f14]">
     <svg ref="svgRef" class="kv-canvas h-full w-full"></svg>
 
+    <!-- Loading overlay -->
     <Transition enter-active-class="transition-opacity duration-200" enter-from-class="opacity-0"
       enter-to-class="opacity-100" leave-active-class="transition-opacity duration-200" leave-from-class="opacity-100"
       leave-to-class="opacity-0">
@@ -30,13 +31,28 @@
       </div>
     </Transition>
 
-    <!-- Controls -->
+    <Transition enter-active-class="transition-opacity duration-300" enter-from-class="opacity-0"
+      enter-to-class="opacity-100" leave-active-class="transition-opacity duration-200" leave-from-class="opacity-100"
+      leave-to-class="opacity-0">
+      <div v-if="!isLoading && !clusterStore.currentCluster.name"
+        class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+        <div class="flex flex-col items-center text-center rounded-xl border border-white/10 bg-gray-900 px-5 py-3.5 shadow-xl shadow-black/20">
+          <UIcon name="i-lucide-layers-3" class="mb-3 size-8 text-white/20" />
+          <p class="text-sm font-medium text-white/70">
+            No cluster selected
+          </p>
+          <p class="mt-1 text-xs text-white/40">
+            Select a cluster to visualize its graph.
+          </p>
+        </div>
+      </div>
+    </Transition>
+
     <div class="pointer-events-none absolute right-3 top-3 z-10">
       <GraphControls @zoom-in="canvasRef?.zoomIn()" @zoom-out="canvasRef?.zoomOut()"
         @fit="canvasRef?.fitToContent(true)" />
     </div>
 
-    <!-- Legend -->
     <div class="pointer-events-none absolute bottom-3 left-3 z-10">
       <Legend />
     </div>
@@ -44,6 +60,8 @@
 </template>
 
 <script setup lang="ts">
+const clusterStore = useClusterStore()
+
 const canvasRef = ref<{
   fitToContent: (animated?: boolean) => void
   zoomIn: () => void
