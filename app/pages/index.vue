@@ -36,12 +36,15 @@
       leave-to-class="opacity-0">
       <div v-if="!isLoading && !clusterStore.currentCluster.name"
         class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-        <div class="flex flex-col items-center text-center rounded-xl border border-white/10 bg-gray-900 px-5 py-3.5 shadow-xl shadow-black/20">
-          <UIcon name="i-lucide-layers-3" class="mb-3 size-8 text-white/20" />
-          <p class="text-sm font-medium text-white/70">
+        <div
+          class="flex flex-col items-center rounded-xl border border-default bg-default px-5 py-3.5 text-center shadow-xl shadow-black/10">
+          <UIcon name="i-lucide-layers-3" class="mb-3 size-8 text-dimmed" />
+
+          <p class="text-sm font-medium text-highlighted">
             No cluster selected
           </p>
-          <p class="mt-1 text-xs text-white/40">
+
+          <p class="mt-1 text-xs text-dimmed">
             Select a cluster to visualize its graph.
           </p>
         </div>
