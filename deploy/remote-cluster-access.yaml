@@ -1,0 +1,115 @@
+# Apply on the target cluster:
+#   kubectl --context <target> apply -f deploy/remote-cluster-access.yaml
+# 
+# Then create a temporary token:
+#   kubectl create token kube-visualizer -n kube-visualizer --duration=24h
+# Paste the token, API server URL and CA certificate into Kube Visualizer.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kube-visualizer
+  labels:
+    app.kubernetes.io/name: kube-visualizer
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kube-visualizer
+  namespace: kube-visualizer
+  labels:
+    app.kubernetes.io/name: kube-visualizer
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kube-visualizer-read
+  labels:
+    app.kubernetes.io/name: kube-visualizer
+rules:
+  - apiGroups: ['']
+    resources:
+      - pods
+      - nodes
+      - services
+      - namespaces
+      - events
+    verbs: ['get', 'list', 'watch']
+
+  - apiGroups: ['apps']
+    resources:
+      - deployments
+      - statefulsets
+      - daemonsets
+      - replicasets
+    verbs: ['get', 'list', 'watch']
+
+  - apiGroups: ['networking.k8s.io']
+    resources:
+      - ingresses
+    verbs: ['get', 'list', 'watch']
+
+  - apiGroups: ['']
+    resources:
+      - pods/log
+    verbs: ['get', 'list']
+
+  - apiGroups: ['metrics.k8s.io']
+    resources:
+      - pods
+      - nodes
+    verbs: ['get', 'list']
+
+  # Used to discover connections from application configuration.
+  # Remove this rule if ConfigMaps should not be readable.
+  - apiGroups: ['']
+    resources:
+      - configmaps
+    verbs: ['get', 'list', 'watch']
+
+  # Used to detect workloads managed by an HPA before scaling them.
+  - apiGroups: ['autoscaling']
+    resources:
+      - horizontalpodautoscalers
+    verbs: ['get', 'list']
+
+  # Optional: allow pod restarts.
+  # - apiGroups: ['']
+  #   resources: ['pods']
+  #   verbs: ['delete']
+
+  # Optional: allow editing workloads and services.
+  # - apiGroups: ['apps']
+  #   resources: ['deployments', 'statefulsets', 'daemonsets']
+  #   verbs: ['update', 'patch']
+  # - apiGroups: ['']
+  #   resources: ['services', 'configmaps']
+  #   verbs: ['update', 'patch']
+
+  # Optional: allow scaling workloads.
+  # - apiGroups: ['apps']
+  #   resources: ['deployments/scale', 'statefulsets/scale']
+  #   verbs: ['update', 'patch']
+
+  # Optional: allow cordoning nodes.
+  # - apiGroups: ['']
+  #   resources: ['nodes']
+  #   verbs: ['update', 'patch']
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kube-visualizer-read
+  labels:
+    app.kubernetes.io/name: kube-visualizer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kube-visualizer-read
+subjects:
+  - kind: ServiceAccount
+    name: kube-visualizer
+    namespace: kube-visualizer

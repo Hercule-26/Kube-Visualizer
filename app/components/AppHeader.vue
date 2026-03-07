@@ -22,17 +22,25 @@
       </div>
       <USeparator orientation="vertical" class="h-8 px-2.5" />
       <div class="flex items-center gap-2.5">
-        <UDropdownMenu :items="[]" :popper="{ placement: 'bottom-start' }">
+        <UDropdownMenu
+          v-model:open="clusterMenuOpen"
+          :items="clusterMenuItems"
+          :popper="{ placement: 'bottom-start' }"
+        >
           <UButton
             color="neutral"
             variant="subtle"
             icon="i-lucide-server"
-            trailing-icon="i-lucide-chevron-down"
+            :trailing-icon="
+              clusterMenuOpen
+                ? 'i-lucide-chevron-up'
+                : 'i-lucide-chevron-down'
+            "
             size="sm"
           >
-          <span class="max-w-44 truncate">
-            {{ clusterStore.currentCluster?.name ?? 'Select a cluster' }}
-          </span>
+            <span class="max-w-44 truncate">
+              {{ clusterStore.currentCluster?.name ?? 'Select a cluster' }}
+            </span>
           </UButton>
         </UDropdownMenu>
         <UBadge color="warning" variant="subtle" size="sm" class="gap-1">
@@ -66,12 +74,38 @@
         />
       </div>
     </template>
+    <ConnectClusterModal v-model:open="openConnectionModal" />
   </UHeader>
 </template>
 
 <script setup lang="ts">
-const clusterStore = useClusterStore()
+import ConnectClusterModal from './ConnectClusterModal.vue'
+
 const colorMode = useColorMode()
+const openConnectionModal = ref(false)
+const clusterMenuOpen = ref(false)
+const clusterStore = useClusterStore()
+const clusterMenuItems = computed(() => [
+  [
+    {
+      label: 'Connect cluster',
+      icon: 'i-lucide-plus',
+      onSelect: () => {
+        console.log('test');
+        openConnectionModal.value = true
+      }
+    }
+  ],
+  [
+    ...clusterStore.clusterList.map(cluster => ({
+      label: cluster.name,
+      icon: 'i-lucide-server',
+      onSelect: () => {
+        clusterStore.selectCluster(cluster)
+      }
+    }))
+  ]
+])
 
 function toggleTheme() {
   colorMode.preference =
@@ -79,7 +113,6 @@ function toggleTheme() {
 }
 function refreshCluster() {
   clusterStore.isLoading = true
-  // Implement the logic to refresh the cluster data
   setTimeout(() => {
     clusterStore.isLoading = false
   }, 2000)

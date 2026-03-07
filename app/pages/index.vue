@@ -34,7 +34,7 @@
     <Transition enter-active-class="transition-opacity duration-300" enter-from-class="opacity-0"
       enter-to-class="opacity-100" leave-active-class="transition-opacity duration-200" leave-from-class="opacity-100"
       leave-to-class="opacity-0">
-      <div v-if="!isLoading && !clusterStore.currentCluster.name"
+      <div v-if="!isLoading && !clusterStore.currentCluster?.name"
         class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
         <div
           class="flex flex-col items-center rounded-xl border border-default bg-default px-5 py-3.5 text-center shadow-xl shadow-black/10">
@@ -74,6 +74,7 @@ const canvasRef = ref<{
 const isLoading = ref(true)
 
 onMounted(() => {
+  clusterStore.fetchClusters()
   setTimeout(() => {
     isLoading.value = false
   }, 3000)
