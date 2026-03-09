@@ -74,7 +74,6 @@ const canvasRef = ref<{
 const isLoading = ref(true)
 
 onMounted(() => {
-  clusterStore.fetchClusters()
   setTimeout(() => {
     isLoading.value = false
   }, 3000)

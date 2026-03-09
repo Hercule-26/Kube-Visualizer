@@ -25,4 +25,11 @@
 
 <script setup lang="ts">
 const sidebarOpen = ref(true)
+
+const clusterStore = useClusterStore()
+const socket = useWebSocket()
+onMounted(async () => {
+  await clusterStore.fetchClusters()
+  socket.connect()
+})
 </script>

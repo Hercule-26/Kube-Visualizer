@@ -6,11 +6,6 @@ import type {
   PodPhase,
 } from '#shared/types/cluster'
 
-export interface ClusterCapabilities {
-  traffic: 'measured' | 'structural'
-  connectionDiscovery: boolean
-}
-
 export interface ClusterFilters {
   search: string
   namespaces: string[]
@@ -25,9 +20,9 @@ export const useClusterStore = defineStore('cluster', () => {
 
   const isLoading = ref(false)
 
-  const layoutMode = ref<'flow' | 'nodes' | 'namespaces'>('flow')
-
-  const capabilities = ref<ClusterCapabilities | null>(null)
+  const podList = ref<Pod[]>([])
+  const nodeList = ref<ClusterNode[]>([])
+  const selectedPod = ref<Pod | null>(null)
 
   const filters = ref<ClusterFilters>({
     search: '',
@@ -36,6 +31,58 @@ export const useClusterStore = defineStore('cluster', () => {
     phases: [],
     hideSystem: false,
   })
+
+  const visiblePods = computed(() => {
+    const search = filters.value.search.toLowerCase()
+
+    return podList.value.filter((pod) => {
+      if (
+        search
+        && !pod.name.toLowerCase().includes(search)
+        && !pod.namespace.toLowerCase().includes(search)
+        && !(pod.node ?? '').toLowerCase().includes(search)
+        && !(pod.workload ?? '').toLowerCase().includes(search)
+      ) {
+        return false
+      }
+
+      if (
+        filters.value.namespaces.length
+        && !filters.value.namespaces.includes(pod.namespace)
+      ) {
+        return false
+      }
+
+      if (
+        filters.value.nodes.length
+        && !filters.value.nodes.includes(pod.node ?? '')
+      ) {
+        return false
+      }
+
+      if (
+        filters.value.phases.length
+        && !filters.value.phases.includes(pod.phase)
+      ) {
+        return false
+      }
+
+      if (
+        filters.value.hideSystem
+        && pod.namespace === 'kube-system'
+      ) {
+        return false
+      }
+
+      return true
+    })
+  })
+
+  const namespaceList = computed(() => [
+    ...new Set(
+      podList.value.map(pod => pod.namespace),
+    ),
+  ])
 
   const filtersActive = computed(() => {
     return (
@@ -47,72 +94,30 @@ export const useClusterStore = defineStore('cluster', () => {
     )
   })
 
-  function resetFilters() {
-    filters.value = {
-      search: '',
-      namespaces: [],
-      nodes: [],
-      phases: [],
-      hideSystem: false,
-    }
-  }
-
-  const podList = ref<Pod[]>([])
-
-  const visiblePods = ref<Pod[]>([
-    {
-      uid: 'placeholder-1',
-      name: 'Loading...',
-      namespace: '',
-      phase: 'Pending',
-      ready: false,
-      node: null,
-      workload: null,
-      restarts: 0,
-      createdAt: '',
-      startedAt: null,
-    },
-    {
-      uid: 'placeholder-2',
-      name: 'Loading...',
-      namespace: '',
-      phase: 'Pending',
-      ready: false,
-      node: null,
-      workload: null,
-      restarts: 0,
-      createdAt: '',
-      startedAt: null,
-    },
-  ])
-
-  const selectedPod = ref<Pod | null>(null)
-
-  const nodeList = ref<ClusterNode[]>([])
-
-  const namespaceList = computed(() => {
-    return [
-      ...new Set(
-        podList.value.map(pod => pod.namespace),
-      ),
-    ]
-  })
-
   async function fetchClusters(): Promise<void> {
     isLoading.value = true
+
     try {
       const clusters = await $fetch<Cluster[]>('/api/clusters')
+
       clusterList.value = clusters
-      const currentName = currentCluster.value?.name
-      if (currentName && !clusters.some(cluster => cluster.name === currentName)) {
+
+      const currentId = currentCluster.value?.id
+
+      if (
+        currentId
+        && !clusters.some(
+          cluster => cluster.id === currentId,
+        )
+      ) {
         currentCluster.value = null
       }
 
       if (!currentCluster.value) {
         const firstCluster = clusters[0]
-      
+
         if (firstCluster) {
-          currentCluster.value = firstCluster
+          selectCluster(firstCluster)
         }
       }
     }
@@ -122,12 +127,42 @@ export const useClusterStore = defineStore('cluster', () => {
   }
 
   function selectCluster(cluster: Cluster): void {
+    if (currentCluster.value?.id === cluster.id) {
+      return
+    }
+
     currentCluster.value = cluster
+
+    resetClusterData()
     resetFilters()
+  }
+
+  function resetClusterData(): void {
     podList.value = []
-    selectedPod.value = null
     nodeList.value = []
-    capabilities.value = null
+    selectedPod.value = null
+  }
+
+  function setClusterLoading(value: boolean): void {
+    isLoading.value = value
+  }
+
+  function setPods(pods: Pod[]): void {
+    podList.value = pods
+  }
+
+  function setNodes(nodes: ClusterNode[]): void {
+    nodeList.value = nodes
+  }
+
+  function resetFilters(): void {
+    filters.value = {
+      search: '',
+      namespaces: [],
+      nodes: [],
+      phases: [],
+      hideSystem: false,
+    }
   }
 
   function selectPod(pod: Pod | null): void {
@@ -137,22 +172,26 @@ export const useClusterStore = defineStore('cluster', () => {
   return {
     clusterList,
     currentCluster,
+    fetchClusters,
+    selectCluster,
+
     isLoading,
-    layoutMode,
-    capabilities,
+    setClusterLoading,
 
     podList,
     visiblePods,
-    selectedPod,
     nodeList,
     namespaceList,
+
+    selectedPod,
+    selectPod,
 
     filters,
     filtersActive,
     resetFilters,
 
-    fetchClusters,
-    selectCluster,
-    selectPod,
+    setPods,
+    setNodes,
+    resetClusterData,
   }
 })
