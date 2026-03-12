@@ -57,3 +57,17 @@ export const EDITABLE_KINDS = [
 ] as const
 
 export type EditableKind = (typeof EDITABLE_KINDS)[number]
+
+export type ClusterActivityType =
+  | 'info'
+  | 'success'
+  | 'warning'
+  | 'error'
+
+export interface ClusterActivity {
+  id: string
+  timestamp: string
+  type: ClusterActivityType
+  message: string
+  resource?: string
+}

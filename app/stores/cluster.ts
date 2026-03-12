@@ -94,6 +94,8 @@ export const useClusterStore = defineStore('cluster', () => {
     )
   })
 
+  const activities = ref<ClusterActivity[]>([ { id: crypto.randomUUID(), timestamp: new Date().toISOString(), type: 'info', message: 'Cluster store initialized', resource: "backend/test" } ])
+
   async function fetchClusters(): Promise<void> {
     isLoading.value = true
 
@@ -169,6 +171,16 @@ export const useClusterStore = defineStore('cluster', () => {
     selectedPod.value = pod
   }
 
+  function addActivity(activity: Omit<ClusterActivity, 'id' | 'timestamp'>): void {
+    activities.value.unshift({
+      id: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+      ...activity
+    })
+
+    activities.value = activities.value.slice(0, 300)
+  }
+
   return {
     clusterList,
     currentCluster,
@@ -193,5 +205,7 @@ export const useClusterStore = defineStore('cluster', () => {
     setPods,
     setNodes,
     resetClusterData,
+    activities,
+    addActivity,
   }
 })

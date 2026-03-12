@@ -53,3 +53,27 @@ export function getPodState(phase: PodPhase) {
 export function getPodStateColor(phase: PodPhase) {
   return getPodState(phase)?.color ?? 'bg-gray-500'
 }
+
+export function getActivityColor(
+  type: 'info' | 'success' | 'warning' | 'error'
+): string {
+  switch (type) {
+    case 'error':
+      return 'bg-error'
+    case 'warning':
+      return 'bg-warning'
+    case 'success':
+      return 'bg-success'
+    case 'info':
+    default:
+      return 'bg-info'
+  }
+}
+
+export function formatActivityTime(timestamp: string): string {
+  return new Date(timestamp).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
+}

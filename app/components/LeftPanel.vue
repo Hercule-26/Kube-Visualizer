@@ -12,8 +12,8 @@
         'absolute top-(--ui-header-height) bottom-0 h-[calc(100%-var(--ui-header-height))]'
     }"
   >
-    <div class="flex h-full min-h-0 w-full flex-col">
-      <div class="space-y-3 p-3">
+    <div class="flex h-full min-h-0 w-full flex-col overflow-hidden">
+      <div class="shrink-0 space-y-3 p-3">
         <UInput
           v-model="clusterStore.filters.search"
           icon="i-lucide-search"
@@ -128,91 +128,212 @@
 
       <USeparator class="w-full shrink-0" />
 
-      <div class="min-h-0 flex-1 kv-scroll">
-        <p
-          class="sticky top-0 z-10 bg-default/95 px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-dimmed backdrop-blur"
-        >
-          Pod{{ clusterStore.visiblePods.length > 1 ? 's' : '' }}
-          ·
-          {{ clusterStore.visiblePods.length }}
-        </p>
+      <div class="min-h-0 flex-1 flex flex-col overflow-hidden">
+        <section class="min-h-0 flex-1 flex flex-col overflow-hidden">
+          <p
+            class="z-10 shrink-0 bg-default/95 px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-dimmed backdrop-blur"
+          >
+            Pod{{ clusterStore.visiblePods.length > 1 ? 's' : '' }}
+            ·
+            {{ clusterStore.visiblePods.length }}
+          </p>
 
-        <div class="px-3 max-h-50 overflow-y-scroll kv-scroll">
-          <ul>
-            <li
-              v-for="pod in sortedPods"
-              :key="pod.uid"
-              class="border-b border-default last:border-none"
-            >
-              <UButton
-                type="button"
-                color="neutral"
-                variant="ghost"
-                block
-                class="w-full rounded-md px-3 py-2 text-left hover:cursor-pointer"
-                :class="
-                  clusterStore.selectedPod?.uid === pod.uid
-                    ? 'bg-elevated'
-                    : 'hover:bg-elevated'
-                "
-                @click="selectPod(pod.uid)"
+          <div class="min-h-0 flex-1 overflow-y-auto kv-scroll">
+            <div class="px-3">
+              <ul>
+                <li
+                  v-for="pod in sortedPods"
+                  :key="pod.uid"
+                  class="border-b border-default last:border-none"
+                >
+                  <UButton
+                    type="button"
+                    color="neutral"
+                    variant="ghost"
+                    block
+                    class="w-full rounded-md px-3 py-2 text-left hover:cursor-pointer"
+                    :class="
+                      clusterStore.selectedPod?.uid === pod.uid
+                        ? 'bg-elevated'
+                        : 'hover:bg-elevated'
+                    "
+                    @click="selectPod(pod.uid)"
+                  >
+                    <div class="flex w-full min-w-0 items-center gap-2">
+                      <span
+                        class="size-2 shrink-0 rounded-full"
+                        :class="getPodStateColor(pod.phase)"
+                      />
+
+                      <div class="min-w-0 flex-1">
+                        <div
+                          class="truncate font-mono text-[11px] font-medium text-highlighted"
+                        >
+                          {{ pod.name }}
+                        </div>
+
+                        <div class="mt-0.5 flex min-w-0 justify-between gap-2">
+                          <span class="truncate text-[10px] text-dimmed">
+                            {{ pod.namespace }}
+                          </span>
+
+                          <span class="truncate text-[10px] text-muted">
+                            {{ pod.node ?? 'unscheduled' }}
+                          </span>
+                        </div>
+                      </div>
+
+                      <span
+                        v-if="pod.restarts > 0"
+                        class="shrink-0 font-mono text-[10px] text-dimmed"
+                      >
+                        ×{{ pod.restarts }}
+                      </span>
+                    </div>
+                  </UButton>
+                </li>
+              </ul>
+
+              <p
+                v-if="sortedPods.length === 0"
+                class="px-3 py-6 text-center text-xs text-dimmed"
               >
-                <div class="flex w-full min-w-0 items-center gap-2">
+                No pod matches these filters.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section
+          class="min-h-0 flex flex-col border-t border-default"
+          :class="activityOpen ? 'flex-1' : 'shrink-0'"
+        >
+          <button
+            type="button"
+            class="flex w-full shrink-0 items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-elevated"
+            @click="toggleActivity"
+          >
+            <UIcon
+              :name="
+                activityOpen
+                  ? 'i-lucide-chevron-down'
+                  : 'i-lucide-chevron-up'
+              "
+              class="size-3.5 shrink-0 text-dimmed"
+            />
+
+            <span
+              class="text-[10px] font-medium uppercase tracking-wide text-dimmed"
+            >
+              Activity
+            </span>
+
+            <span class="text-[10px] tabular-nums text-muted">
+              · {{ clusterStore.activities.length }}
+            </span>
+
+            <div
+              v-if="!activityOpen && unreadActivities > 0"
+              class="ml-auto flex items-center gap-1"
+            >
+              <span
+                v-if="activityUnreadByType.error"
+                class="inline-flex min-w-4 items-center justify-center rounded-full bg-error/15 px-1.5 py-0.5 text-[9px] font-medium tabular-nums text-error"
+              >
+                {{ activityUnreadByType.error }}
+              </span>
+
+              <span
+                v-if="activityUnreadByType.warning"
+                class="inline-flex min-w-4 items-center justify-center rounded-full bg-warning/15 px-1.5 py-0.5 text-[9px] font-medium tabular-nums text-warning"
+              >
+                {{ activityUnreadByType.warning }}
+              </span>
+
+              <span
+                v-if="activityUnreadByType.info"
+                class="inline-flex min-w-4 items-center justify-center rounded-full bg-info/15 px-1.5 py-0.5 text-[9px] font-medium tabular-nums text-info"
+              >
+                {{ activityUnreadByType.info }}
+              </span>
+
+              <span
+                v-if="activityUnreadByType.success"
+                class="inline-flex min-w-4 items-center justify-center rounded-full bg-success/15 px-1.5 py-0.5 text-[9px] font-medium tabular-nums text-success"
+              >
+                {{ activityUnreadByType.success }}
+              </span>
+            </div>
+          </button>
+
+          <div
+            v-if="activityOpen"
+            class="min-h-0 flex-1 overflow-y-auto kv-scroll"
+          >
+            <ul class="px-3">
+              <li
+                v-for="activity in clusterStore.activities"
+                :key="activity.id"
+                class="border-b border-default py-2 last:border-none"
+              >
+                <div class="flex items-start gap-2">
                   <span
-                    class="size-2 shrink-0 rounded-full"
-                    :class="getPodStateColor(pod.phase)"
+                    class="mt-1.5 size-2 shrink-0 rounded-full"
+                    :class="getActivityColor(activity.type)"
                   />
 
                   <div class="min-w-0 flex-1">
-                    <div
-                      class="truncate font-mono text-[11px] font-medium text-highlighted"
-                    >
-                      {{ pod.name }}
+                    <div class="flex items-start justify-between gap-2">
+                      <span
+                        class="truncate text-[10px] font-medium text-highlighted"
+                      >
+                        {{ activity.message }}
+                      </span>
+
+                      <span
+                        class="shrink-0 font-mono text-[9px] text-dimmed"
+                      >
+                        {{ formatActivityTime(activity.timestamp) }}
+                      </span>
                     </div>
 
-                    <div class="mt-0.5 flex min-w-0 justify-between gap-2">
-                      <span class="truncate text-[10px] text-dimmed">
-                        {{ pod.namespace }}
-                      </span>
-
-                      
-                      <span
-                        class="truncate text-[10px] text-muted"
-                      >
-                        {{ pod.node ?? 'unscheduled' }}
-                      </span>
-                     
+                    <div
+                      v-if="activity.resource"
+                      class="mt-0.5 truncate font-mono text-[10px] text-muted"
+                    >
+                      {{ activity.resource }}
                     </div>
                   </div>
-
-                  <span
-                    v-if="pod.restarts > 0"
-                    class="shrink-0 font-mono text-[10px] text-dimmed"
-                  >
-                    ×{{ pod.restarts }}
-                  </span>
                 </div>
-              </UButton>
-            </li>
-          </ul>
+              </li>
+            </ul>
 
-          <p
-            v-if="sortedPods.length === 0"
-            class="px-3 py-6 text-center text-xs text-dimmed"
-          >
-            No pod matches these filters.
-          </p>
-        </div>
+            <p
+              v-if="clusterStore.activities.length === 0"
+              class="px-3 py-6 text-center text-xs text-dimmed"
+            >
+              No cluster activity yet.
+            </p>
+          </div>
+        </section>
       </div>
     </div>
   </USidebar>
 </template>
 
 <script setup lang="ts">
-import type { PodPhase } from '#shared/types/cluster'
-import { getPodStateColor } from '~/utils/format'
+import type {
+  ClusterActivityType,
+  PodPhase
+} from '#shared/types/cluster'
+import {
+  getActivityColor,
+  getPodStateColor
+} from '~/utils/format'
 
-const emit = defineEmits<{ focusPod: [uid: string] }>()
+const emit = defineEmits<{
+  focusPod: [uid: string]
+}>()
 
 const open = defineModel<boolean>('open', {
   default: true
@@ -269,7 +390,8 @@ const sortedPods = computed(() => {
 
   return [...clusterStore.visiblePods]
     .sort((a, b) => {
-      const byPhase = (rank[a.phase] ?? 9) - (rank[b.phase] ?? 9)
+      const byPhase =
+        (rank[a.phase] ?? 9) - (rank[b.phase] ?? 9)
 
       if (byPhase !== 0)
         return byPhase
@@ -282,15 +404,62 @@ const sortedPods = computed(() => {
     .slice(0, 300)
 })
 
+const activityOpen = ref(true)
+
+const lastSeenActivityId = ref<string | null>(
+  clusterStore.activities[0]?.id ?? null
+)
+
+const activityUnreadByType = computed(() => {
+  const counts: Record<ClusterActivityType, number> = {
+    info: 0,
+    success: 0,
+    warning: 0,
+    error: 0
+  }
+
+  if (activityOpen.value || !lastSeenActivityId.value) {
+    return counts
+  }
+
+  for (const activity of clusterStore.activities) {
+    if (activity.id === lastSeenActivityId.value) {
+      break
+    }
+
+    counts[activity.type]++
+  }
+
+  return counts
+})
+
+const unreadActivities = computed(() =>
+  Object.values(activityUnreadByType.value).reduce(
+    (total, count) => total + count,
+    0
+  )
+)
+
 function selectPod(uid: string): void {
   emit('focusPod', uid)
+}
+
+function toggleActivity(): void {
+  activityOpen.value = !activityOpen.value
+
+  if (activityOpen.value) {
+    lastSeenActivityId.value =
+      clusterStore.activities[0]?.id ?? null
+  } else {
+    lastSeenActivityId.value =
+      clusterStore.activities[0]?.id ?? null
+  }
 }
 </script>
 
 <style scoped lang="css">
 .kv-scroll {
   scrollbar-color: #142144 transparent;
-  
 }
 
 .kv-scroll::-webkit-scrollbar {
@@ -301,7 +470,6 @@ function selectPod(uid: string): void {
   background: #142144;
 }
 
-/* Light mode */
 html:not(.dark) .kv-scroll {
   scrollbar-color: #67676861 transparent;
 }
