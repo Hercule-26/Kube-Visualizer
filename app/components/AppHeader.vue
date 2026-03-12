@@ -84,18 +84,20 @@
           @click="refreshCluster"
         />
 
-        <UButton
-          :icon="
-            colorMode.value === 'dark'
-              ? 'i-lucide-sun'
-              : 'i-lucide-moon'
-          "
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          aria-label="Toggle theme"
-          @click="toggleTheme"
-        />
+        <ClientOnly>
+          <UButton
+            :icon="
+              colorMode.value === 'dark'
+                ? 'i-lucide-sun'
+                : 'i-lucide-moon'
+            "
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            aria-label="Toggle theme"
+            @click="toggleTheme"
+          />
+        </ClientOnly>
       </div>
     </template>
 

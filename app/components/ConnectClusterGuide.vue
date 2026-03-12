@@ -97,7 +97,7 @@ async function copyText(id: string, text: string) {
             @click="copyText('apply', commands.apply)"
           >
             <pre
-              class="whitespace-pre-wrap break-words rounded-md border border-default bg-elevated/50 py-1.5 pl-2.5 pr-9 text-[10.5px] leading-relaxed text-muted kv-mono transition-colors hover:bg-elevated"
+              class="whitespace-pre-wrap wrap-break-words rounded-md border border-default bg-elevated/50 py-1.5 pl-2.5 pr-9 text-[10.5px] leading-relaxed text-muted kv-mono transition-colors hover:bg-elevated"
             >{{ commands.apply }}</pre>
 
             <UButton
@@ -139,7 +139,7 @@ async function copyText(id: string, text: string) {
             @click="copyText('server', commands.server)"
           >
             <pre
-              class="whitespace-pre-wrap break-words rounded-md border border-default bg-elevated/50 py-1.5 pl-2.5 pr-9 text-[10.5px] leading-relaxed text-muted kv-mono transition-colors hover:bg-elevated"
+              class="whitespace-pre-wrap wrap-break-words rounded-md border border-default bg-elevated/50 py-1.5 pl-2.5 pr-9 text-[10.5px] leading-relaxed text-muted kv-mono transition-colors hover:bg-elevated"
             >{{ commands.server }}</pre>
 
             <UButton
@@ -186,7 +186,7 @@ async function copyText(id: string, text: string) {
             @click="copyText('token', commands.token)"
           >
             <pre
-              class="whitespace-pre-wrap break-words rounded-md border border-default bg-elevated/50 py-1.5 pl-2.5 pr-9 text-[10.5px] leading-relaxed text-muted kv-mono transition-colors hover:bg-elevated"
+              class="whitespace-pre-wrap wrap-break-words rounded-md border border-default bg-elevated/50 py-1.5 pl-2.5 pr-9 text-[10.5px] leading-relaxed text-muted kv-mono transition-colors hover:bg-elevated"
             >{{ commands.token }}</pre>
 
             <UButton
@@ -230,7 +230,7 @@ async function copyText(id: string, text: string) {
             @click="copyText('certificate', commands.certificate)"
           >
             <pre
-              class="whitespace-pre-wrap break-words rounded-md border border-default bg-elevated/50 py-1.5 pl-2.5 pr-9 text-[10.5px] leading-relaxed text-muted kv-mono transition-colors hover:bg-elevated"
+              class="whitespace-pre-wrap wrap-break-words rounded-md border border-default bg-elevated/50 py-1.5 pl-2.5 pr-9 text-[10.5px] leading-relaxed text-muted kv-mono transition-colors hover:bg-elevated"
             >{{ commands.certificate }}</pre>
 
             <UButton

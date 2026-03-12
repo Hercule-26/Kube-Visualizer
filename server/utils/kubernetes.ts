@@ -1,5 +1,17 @@
 import * as k8s from '@kubernetes/client-node'
-import type { ClusterConfig } from '~~/shared/types/cluster'
+import type {
+  ClusterConfig,
+  Cluster,
+  ClusterNode,
+  Pod,
+  PodPhase,
+} from '~~/shared/types/cluster'
+
+export interface ClusterState {
+  cluster: Cluster
+  nodes: ClusterNode[]
+  pods: Pod[]
+}
 
 export function createKubernetesClient(
   config: ClusterConfig,
@@ -37,6 +49,50 @@ export function createKubernetesClient(
   })
 
   return kubeConfig
+}
+
+export async function getClusterState(
+  config: ClusterConfig,
+): Promise<ClusterState> {
+  const kubeConfig = createKubernetesClient(config)
+
+  const coreApi = kubeConfig.makeApiClient(
+    k8s.CoreV1Api,
+  )
+
+  const [nodes, pods] = await Promise.all([
+    coreApi.listNode(),
+    coreApi.listPodForAllNamespaces(),
+  ])
+
+  return {
+    cluster: {
+      id: config.id,
+      name: config.name,
+      server: config.server,
+      insecureSkipTlsVerify: config.insecureSkipTlsVerify,
+      allowWrite: config.allowWrite,
+      allowPodDelete: config.allowPodDelete,
+      editableKinds: config.editableKinds,
+    },
+
+    nodes: nodes.items.map(node => ({
+      name: node.metadata?.name ?? '',
+    })),
+
+    pods: pods.items.map(pod => ({
+      uid: pod.metadata?.uid ?? '',
+      name: pod.metadata?.name ?? '',
+      namespace: pod.metadata?.namespace ?? '',
+      phase: (pod.status?.phase ?? 'Unknown') as PodPhase,
+      ready: false,
+      node: pod.spec?.nodeName ?? null,
+      workload: null,
+      restarts: 0,
+      createdAt: pod.metadata?.creationTimestamp?.toString() ?? '',
+      startedAt: pod.status?.startTime?.toString() ?? null,
+    })),
+  }
 }
 
 export async function testClusterConnection(

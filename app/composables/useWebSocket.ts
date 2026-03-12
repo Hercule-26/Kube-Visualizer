@@ -1,3 +1,8 @@
+import type {
+  ClusterNode,
+  Pod,
+} from '#shared/types/cluster'
+
 type SocketStatus =
   | 'disconnected'
   | 'connecting'
@@ -13,6 +18,12 @@ interface SocketMessage {
   type: string
   data?: unknown
   message?: string
+}
+
+
+interface ClusterState {
+  pods: Pod[]
+  nodes: ClusterNode[]
 }
 
 export function useWebSocket() {
@@ -68,7 +79,7 @@ export function useWebSocket() {
       sendCurrentCluster()
     }
 
-    ws.onmessage = (event) => {
+    ws.onmessage = event => {
       handleMessage(event.data)
     }
 
@@ -143,19 +154,9 @@ export function useWebSocket() {
         rawMessage,
       ) as SocketMessage
 
-      console.log('[WebSocket] Message:', message)
-
       switch (message.type) {
-        case 'cluster.pods':
-          handleClusterPods(message.data)
-          break
-
-        case 'cluster.nodes':
-          handleClusterNodes(message.data)
-          break
-
-        case 'cluster.ready':
-          handleClusterReady()
+        case 'cluster.state':
+          handleClusterState(message.data)
           break
 
         case 'cluster.error':
@@ -177,29 +178,14 @@ export function useWebSocket() {
     }
   }
 
-  function handleClusterPods(data: unknown): void {
-    if (!Array.isArray(data)) {
+  function handleClusterState(data: unknown): void {
+    if (!data) {
       return
     }
-
-    clusterStore.setPods(data)
-  }
-
-  function handleClusterNodes(data: unknown): void {
-    if (!Array.isArray(data)) {
-      return
-    }
-
-    clusterStore.setNodes(data)
-  }
-
-  function handleClusterReady(): void {
+    const state = data as ClusterState
+    clusterStore.setPods(state.pods)
+    clusterStore.setNodes(state.nodes)
     clusterStore.setClusterLoading(false)
-
-    console.log(
-      '[Cluster] Ready:',
-      clusterStore.currentCluster?.name,
-    )
   }
 
   function handleClusterError(message?: string): void {
@@ -214,7 +200,7 @@ export function useWebSocket() {
   watch(() => clusterStore.currentCluster?.id, (clusterId, previousId) => {
     if (!clusterId || clusterId === previousId) {
       return
-    }
+    } 
     sendCurrentCluster()
   })
 
@@ -222,5 +208,6 @@ export function useWebSocket() {
     status,
     connect,
     disconnect,
+    send,
   }
 }

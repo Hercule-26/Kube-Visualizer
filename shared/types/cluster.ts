@@ -1,4 +1,5 @@
 export interface ClusterConfig {
+  id: string
   name: string
   server: string
   token: string
@@ -10,6 +11,7 @@ export interface ClusterConfig {
 }
 
 export interface Cluster {
+  id: string
   name: string
   server: string
   insecureSkipTlsVerify: boolean

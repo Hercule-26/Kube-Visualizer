@@ -28,12 +28,9 @@ export async function getClusters(): Promise<ClusterConfig[]> {
   return JSON.parse(content) as ClusterConfig[]
 }
 
-export async function getCluster(
-  name: string,
-): Promise<ClusterConfig | undefined> {
+export async function getCluster(id: string): Promise<ClusterConfig | undefined> {
   const clusters = await getClusters()
-
-  return clusters.find(cluster => cluster.name === name)
+  return clusters.find(cluster => cluster.id === id)
 }
 
 export async function saveCluster(
