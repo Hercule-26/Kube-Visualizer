@@ -1,4 +1,5 @@
 import type {
+  ClusterActivity,
   ClusterNode,
   Pod,
 } from '#shared/types/cluster'
@@ -12,6 +13,7 @@ type SocketStatus =
 interface SocketState {
   status: SocketStatus
   socket: WebSocket | null
+  reconnectTimer: ReturnType<typeof setTimeout> | null
 }
 
 interface SocketMessage {
@@ -30,6 +32,7 @@ export function useWebSocket() {
   const socketState = useState<SocketState>('kube-websocket', () => ({
     status: 'disconnected',
     socket: null,
+    reconnectTimer: null,
   }))
 
   const clusterStore = useClusterStore()
@@ -73,19 +76,14 @@ export function useWebSocket() {
 
     ws.onopen = () => {
       socketState.value.status = 'connected'
-
-      console.log('[WebSocket] Connected')
-
-      sendCurrentCluster()
+      refresh()
     }
 
     ws.onmessage = event => {
       handleMessage(event.data)
     }
 
-    ws.onerror = () => {
-      console.warn('[WebSocket] Connection error')
-    }
+    ws.onerror = () => clusterStore.setClusterLoading(false)
 
     ws.onclose = () => {
       socketState.value.socket = null
@@ -96,9 +94,7 @@ export function useWebSocket() {
 
       socketState.value.status = 'reconnecting'
 
-      console.log('[WebSocket] Disconnected')
-
-      setTimeout(() => {
+      socketState.value.reconnectTimer = setTimeout(() => {
         connect()
       }, 2000)
     }
@@ -113,6 +109,11 @@ export function useWebSocket() {
 
     ws.onclose = null
     ws.close()
+
+    if (socketState.value.reconnectTimer) {
+      clearTimeout(socketState.value.reconnectTimer)
+      socketState.value.reconnectTimer = null
+    }
 
     socketState.value.socket = null
     socketState.value.status = 'disconnected'
@@ -133,19 +134,21 @@ export function useWebSocket() {
     return true
   }
 
-  function sendCurrentCluster(): void {
+  function refresh(): void {
     const clusterId = clusterStore.currentCluster?.id
 
     if (!clusterId) {
       return
     }
 
-    clusterStore.setClusterLoading(true)
-
-    send({
+    const sent = send({
       type: 'cluster.select',
       clusterId,
     })
+
+    if (sent) {
+      clusterStore.setClusterLoading(true)
+    }
   }
 
   function handleMessage(rawMessage: string): void {
@@ -161,6 +164,10 @@ export function useWebSocket() {
 
         case 'cluster.error':
           handleClusterError(message.message)
+          break
+
+        case 'cluster.activity':
+          handleClusterActivity(message.data)
           break
 
         default:
@@ -197,17 +204,21 @@ export function useWebSocket() {
     )
   }
 
-  watch(() => clusterStore.currentCluster?.id, (clusterId, previousId) => {
-    if (!clusterId || clusterId === previousId) {
+  function handleClusterActivity(data: unknown): void {
+    const activity = data as Omit<ClusterActivity, 'id' | 'timestamp'>
+
+    if (!activity?.type || !activity.message) {
       return
-    } 
-    sendCurrentCluster()
-  })
+    }
+
+    clusterStore.addActivity(activity)
+  }
 
   return {
     status,
     connect,
     disconnect,
     send,
+    refresh,
   }
 }

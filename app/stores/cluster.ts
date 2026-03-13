@@ -94,7 +94,7 @@ export const useClusterStore = defineStore('cluster', () => {
     )
   })
 
-  const activities = ref<ClusterActivity[]>([ { id: crypto.randomUUID(), timestamp: new Date().toISOString(), type: 'info', message: 'Cluster store initialized', resource: "backend/test" } ])
+  const activities = ref<ClusterActivity[]>([])
 
   async function fetchClusters(): Promise<void> {
     isLoading.value = true

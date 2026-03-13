@@ -1,0 +1,341 @@
+import * as k8s from '@kubernetes/client-node'
+
+import type {
+  ClusterActivityType,
+  ClusterConfig,
+} from '~~/shared/types/cluster'
+import { createKubernetesClient, getClusterState } from '~~/server/utils/kubernetes'
+
+type SocketPeer = {
+  id: string
+  send: (message: string) => void
+}
+
+interface ClusterWatcher {
+  config: ClusterConfig
+  peers: Set<SocketPeer>
+  podController: AbortController | null
+  nodeController: AbortController | null
+  updateTimer: ReturnType<typeof setTimeout> | null
+  reconnectTimer: ReturnType<typeof setTimeout> | null
+  starting: boolean
+  refreshing: boolean
+  pending: boolean
+  silentUntil: number
+  podRestarts: Map<string, number>
+}
+
+const watchers = new Map<string, ClusterWatcher>()
+const peerClusters = new Map<string, string>()
+
+function sendState(peer: SocketPeer, state: unknown): void {
+  peer.send(JSON.stringify({ type: 'cluster.state', data: state }))
+}
+
+function sendError(peer: SocketPeer, message: string): void {
+  peer.send(JSON.stringify({ type: 'cluster.error', message }))
+}
+
+function sendActivity(
+  watcher: ClusterWatcher,
+  type: ClusterActivityType,
+  message: string,
+  resource: string,
+): void {
+  const data = JSON.stringify({
+    type: 'cluster.activity',
+    data: { type, message, resource },
+  })
+
+  for (const peer of watcher.peers) {
+    peer.send(data)
+  }
+}
+
+function podActivity(watcher: ClusterWatcher, phase: string, pod: any): void {
+  const name = pod?.metadata?.name ?? 'unknown'
+  const namespace = pod?.metadata?.namespace ?? 'default'
+  const uid = pod?.metadata?.uid ?? `${namespace}/${name}`
+  const resource = `Pod/${namespace}/${name}`
+  const statuses = pod?.status?.containerStatuses ?? []
+  const restarts = statuses.reduce(
+    (total: number, status: any) => total + (status.restartCount ?? 0),
+    0,
+  )
+  const previousRestarts = watcher.podRestarts.get(uid) ?? restarts
+  watcher.podRestarts.set(uid, restarts)
+
+  if (Date.now() < watcher.silentUntil) {
+    return
+  }
+
+  if (phase === 'ADDED') {
+    sendActivity(watcher, 'success', `Pod ${namespace}/${name} created`, resource)
+    return
+  }
+
+  if (phase === 'DELETED') {
+    watcher.podRestarts.delete(uid)
+    sendActivity(watcher, 'warning', `Pod ${namespace}/${name} deleted`, resource)
+    return
+  }
+
+  const crashLoop = statuses.some(
+    (status: any) => status.state?.waiting?.reason === 'CrashLoopBackOff',
+  )
+
+  if (crashLoop) {
+    sendActivity(watcher, 'error', `Pod ${namespace}/${name} is in CrashLoopBackOff`, resource)
+    return
+  }
+
+  if (restarts > previousRestarts) {
+    sendActivity(watcher, 'warning', `Pod ${namespace}/${name} restarted`, resource)
+    return
+  }
+
+  sendActivity(watcher, 'info', `Pod ${namespace}/${name} updated`, resource)
+}
+
+function nodeActivity(watcher: ClusterWatcher, phase: string, node: any): void {
+  if (Date.now() < watcher.silentUntil) {
+    return
+  }
+
+  const name = node?.metadata?.name ?? 'unknown'
+  const resource = `Node/${name}`
+  const type: ClusterActivityType = phase === 'DELETED' ? 'warning' : 'info'
+  const action = phase === 'ADDED' ? 'added' : phase === 'DELETED' ? 'deleted' : 'updated'
+
+  sendActivity(watcher, type, `Node ${name} ${action}`, resource)
+}
+
+async function refresh(clusterId: string): Promise<void> {
+  const watcher = watchers.get(clusterId)
+
+  if (!watcher) {
+    return
+  }
+
+  if (watcher.refreshing) {
+    watcher.pending = true
+    return
+  }
+
+  watcher.refreshing = true
+
+  try {
+    const state = await getClusterState(watcher.config)
+
+    for (const peer of watcher.peers) {
+      sendState(peer, state)
+    }
+  }
+  catch {
+    for (const peer of watcher.peers) {
+      sendError(peer, 'Unable to retrieve cluster information.')
+    }
+  }
+  finally {
+    watcher.refreshing = false
+
+    if (watcher.pending) {
+      watcher.pending = false
+      void refresh(clusterId)
+    }
+  }
+}
+
+function scheduleRefresh(clusterId: string): void {
+  const watcher = watchers.get(clusterId)
+
+  if (!watcher || watcher.updateTimer) {
+    return
+  }
+
+  watcher.updateTimer = setTimeout(() => {
+    const currentWatcher = watchers.get(clusterId)
+
+    if (currentWatcher) {
+      currentWatcher.updateTimer = null
+    }
+
+    void refresh(clusterId)
+  }, 250)
+}
+
+function scheduleReconnect(clusterId: string): void {
+  const watcher = watchers.get(clusterId)
+
+  if (!watcher || watcher.peers.size === 0 || watcher.reconnectTimer) {
+    return
+  }
+
+  watcher.reconnectTimer = setTimeout(() => {
+    const currentWatcher = watchers.get(clusterId)
+
+    if (!currentWatcher) {
+      return
+    }
+
+    currentWatcher.reconnectTimer = null
+    void start(clusterId)
+  }, 2000)
+}
+
+function watchEnded(clusterId: string): void {
+  const watcher = watchers.get(clusterId)
+
+  if (!watcher) {
+    return
+  }
+
+  watcher.podController?.abort()
+  watcher.nodeController?.abort()
+  watcher.podController = null
+  watcher.nodeController = null
+  scheduleReconnect(clusterId)
+}
+
+async function start(clusterId: string): Promise<void> {
+  const watcher = watchers.get(clusterId)
+
+  if (!watcher || watcher.peers.size === 0 || watcher.starting || watcher.podController || watcher.nodeController) {
+    return
+  }
+
+  watcher.starting = true
+  watcher.silentUntil = Date.now() + 1500
+
+  const client = createKubernetesClient(watcher.config)
+  const watch = new k8s.Watch(client)
+
+  try {
+    const [podController, nodeController] = await Promise.all([
+      watch.watch('/api/v1/pods', {}, (phase, pod) => {
+        if (phase !== 'BOOKMARK') {
+          const currentWatcher = watchers.get(clusterId)
+
+          if (currentWatcher) {
+            podActivity(currentWatcher, phase, pod)
+          }
+
+          scheduleRefresh(clusterId)
+        }
+      }, () => watchEnded(clusterId)),
+      watch.watch('/api/v1/nodes', {}, (phase, node) => {
+        if (phase !== 'BOOKMARK') {
+          const currentWatcher = watchers.get(clusterId)
+
+          if (currentWatcher) {
+            nodeActivity(currentWatcher, phase, node)
+          }
+
+          scheduleRefresh(clusterId)
+        }
+      }, () => watchEnded(clusterId)),
+    ])
+
+    const currentWatcher = watchers.get(clusterId)
+
+    if (!currentWatcher || currentWatcher.peers.size === 0) {
+      podController.abort()
+      nodeController.abort()
+      return
+    }
+
+    currentWatcher.starting = false
+    currentWatcher.podController = podController
+    currentWatcher.nodeController = nodeController
+  }
+  catch {
+    const currentWatcher = watchers.get(clusterId)
+
+    if (currentWatcher) {
+      currentWatcher.starting = false
+    }
+
+    scheduleReconnect(clusterId)
+  }
+}
+
+function stop(clusterId: string): void {
+  const watcher = watchers.get(clusterId)
+
+  if (!watcher) {
+    return
+  }
+
+  watcher.podController?.abort()
+  watcher.nodeController?.abort()
+
+  if (watcher.updateTimer) {
+    clearTimeout(watcher.updateTimer)
+  }
+
+  if (watcher.reconnectTimer) {
+    clearTimeout(watcher.reconnectTimer)
+  }
+
+  watchers.delete(clusterId)
+}
+
+export async function subscribeToCluster(
+  peer: SocketPeer,
+  config: ClusterConfig,
+): Promise<void> {
+  unsubscribeFromCluster(peer)
+
+  let watcher = watchers.get(config.id)
+
+  if (!watcher) {
+    watcher = {
+      config,
+      peers: new Set(),
+      podController: null,
+      nodeController: null,
+      updateTimer: null,
+      reconnectTimer: null,
+      starting: false,
+      refreshing: false,
+      pending: false,
+      silentUntil: Date.now() + 1500,
+      podRestarts: new Map(),
+    }
+    watchers.set(config.id, watcher)
+  }
+
+  watcher.peers.add(peer)
+  peerClusters.set(peer.id, config.id)
+
+  try {
+    sendState(peer, await getClusterState(config))
+  }
+  catch {
+    sendError(peer, 'Unable to retrieve cluster information.')
+  }
+
+  void start(config.id)
+}
+
+export function unsubscribeFromCluster(peer: SocketPeer): void {
+  const clusterId = peerClusters.get(peer.id)
+
+  if (!clusterId) {
+    return
+  }
+
+  peerClusters.delete(peer.id)
+
+  const watcher = watchers.get(clusterId)
+
+  if (!watcher) {
+    return
+  }
+
+  watcher.peers.delete(peer)
+
+  if (watcher.peers.size === 0) {
+    stop(clusterId)
+  }
+}

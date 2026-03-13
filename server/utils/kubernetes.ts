@@ -13,6 +13,41 @@ export interface ClusterState {
   pods: Pod[]
 }
 
+function toPodPhase(pod: k8s.V1Pod): PodPhase {
+  const crashLoop = pod.status?.containerStatuses?.some(
+    status => status.state?.waiting?.reason === 'CrashLoopBackOff',
+  )
+
+  if (crashLoop) {
+    return 'CrashLoopBackOff'
+  }
+
+  return (pod.status?.phase ?? 'Unknown') as PodPhase
+}
+
+function toPod(pod: k8s.V1Pod): Pod {
+  const statuses = pod.status?.containerStatuses ?? []
+  const owner = pod.metadata?.ownerReferences?.[0]
+
+  return {
+    uid: pod.metadata?.uid ?? '',
+    name: pod.metadata?.name ?? '',
+    namespace: pod.metadata?.namespace ?? '',
+    phase: toPodPhase(pod),
+    ready: pod.status?.conditions?.some(
+      condition => condition.type === 'Ready' && condition.status === 'True',
+    ) ?? false,
+    node: pod.spec?.nodeName ?? null,
+    workload: owner ? `${owner.kind}/${owner.name}` : null,
+    restarts: statuses.reduce(
+      (total, status) => total + status.restartCount,
+      0,
+    ),
+    createdAt: pod.metadata?.creationTimestamp?.toString() ?? '',
+    startedAt: pod.status?.startTime?.toString() ?? null,
+  }
+}
+
 export function createKubernetesClient(
   config: ClusterConfig,
 ): k8s.KubeConfig {
@@ -80,18 +115,7 @@ export async function getClusterState(
       name: node.metadata?.name ?? '',
     })),
 
-    pods: pods.items.map(pod => ({
-      uid: pod.metadata?.uid ?? '',
-      name: pod.metadata?.name ?? '',
-      namespace: pod.metadata?.namespace ?? '',
-      phase: (pod.status?.phase ?? 'Unknown') as PodPhase,
-      ready: false,
-      node: pod.spec?.nodeName ?? null,
-      workload: null,
-      restarts: 0,
-      createdAt: pod.metadata?.creationTimestamp?.toString() ?? '',
-      startedAt: pod.status?.startTime?.toString() ?? null,
-    })),
+    pods: pods.items.map(toPod),
   }
 }
 

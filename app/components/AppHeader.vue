@@ -183,10 +183,6 @@ function toggleTheme() {
 }
 
 function refreshCluster() {
-  clusterStore.isLoading = true
-
-  setTimeout(() => {
-    clusterStore.isLoading = false
-  }, 2000)
+  socket.refresh()
 }
 </script>
