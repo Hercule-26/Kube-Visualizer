@@ -71,3 +71,39 @@ export interface ClusterActivity {
   message: string
   resource?: string
 }
+
+export interface PodDetails {
+  uid: string
+  name: string
+  namespace: string
+  phase: PodPhase
+  ready: boolean
+  node: string | null
+  workload: string | null
+  restarts: number
+  createdAt: string
+  startedAt: string | null
+  ip: string | null
+  serviceAccount: string | null
+  labels: Record<string, string>
+  annotations: Record<string, string>
+  containers: PodContainerDetails[]
+  conditions: PodCondition[]
+  qosClass: string | null
+}
+
+export interface PodContainerDetails {
+  name: string
+  image: string
+  ready: boolean
+  restartCount: number
+  state: string
+  reason: string | null
+}
+
+export interface PodCondition {
+  type: string
+  status: string
+  reason: string | null
+  message: string | null
+}

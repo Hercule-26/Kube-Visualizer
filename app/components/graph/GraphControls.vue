@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { RadioGroupItem } from '@nuxt/ui'
-import type { LayoutMode } from '~~/app/types/graph'
 
 const emit = defineEmits<{
   zoomIn: []

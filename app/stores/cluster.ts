@@ -1,10 +1,14 @@
 import { defineStore } from 'pinia'
 import type {
   Cluster,
+  ClusterActivity,
   ClusterNode,
   Pod,
+  PodDetails,
   PodPhase,
 } from '#shared/types/cluster'
+
+export type LayoutMode = 'flow' | 'nodes' | 'namespaces'
 
 export interface ClusterFilters {
   search: string
@@ -23,6 +27,9 @@ export const useClusterStore = defineStore('cluster', () => {
   const podList = ref<Pod[]>([])
   const nodeList = ref<ClusterNode[]>([])
   const selectedPod = ref<Pod | null>(null)
+  const selectedPodDetails = ref<PodDetails | null>(null)
+  const loadingPodDetails = ref(false)
+  const layoutMode = ref<LayoutMode>('flow')
 
   const filters = ref<ClusterFilters>({
     search: '',
@@ -143,6 +150,7 @@ export const useClusterStore = defineStore('cluster', () => {
     podList.value = []
     nodeList.value = []
     selectedPod.value = null
+    selectedPodDetails.value = null
   }
 
   function setClusterLoading(value: boolean): void {
@@ -169,6 +177,7 @@ export const useClusterStore = defineStore('cluster', () => {
 
   function selectPod(pod: Pod | null): void {
     selectedPod.value = pod
+    selectedPodDetails.value = null
   }
 
   function addActivity(activity: Omit<ClusterActivity, 'id' | 'timestamp'>): void {
@@ -179,6 +188,21 @@ export const useClusterStore = defineStore('cluster', () => {
     })
 
     activities.value = activities.value.slice(0, 300)
+  }
+
+  async function fetchPodDetails(uid: string): Promise<void> {
+    loadingPodDetails.value = true
+
+    try {
+      selectedPodDetails.value = await $fetch<PodDetails>(
+        `/api/clusters/${currentCluster.value?.id}/pods/${uid}`
+      )
+    }
+    catch {
+      selectedPodDetails.value = null
+    } finally {
+      loadingPodDetails.value = false
+    }
   }
 
   return {
@@ -197,6 +221,9 @@ export const useClusterStore = defineStore('cluster', () => {
 
     selectedPod,
     selectPod,
+    selectedPodDetails,
+    loadingPodDetails,
+    layoutMode,
 
     filters,
     filtersActive,
@@ -207,5 +234,7 @@ export const useClusterStore = defineStore('cluster', () => {
     resetClusterData,
     activities,
     addActivity,
+
+    fetchPodDetails
   }
 })
