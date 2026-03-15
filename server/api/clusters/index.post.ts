@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { createError, defineEventHandler, readBody } from 'h3'
+import { createError, defineEventHandler, getQuery, readBody } from 'h3'
 
 import type { ClusterConfig } from '~~/shared/types/cluster'
 
@@ -11,23 +11,26 @@ import {
 import { saveCluster } from '~~/server/utils/clusters'
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<ClusterConfig>(event)
+  const body = await readBody<Partial<ClusterConfig>>(event)
+  const editableKinds = Array.isArray(body?.editableKinds)
+    ? body.editableKinds
+    : []
 
-  if (!body.name?.trim()) {
+  if (!body?.name?.trim()) {
     throw createError({
       statusCode: 400,
       statusMessage: 'Cluster name is required.',
     })
   }
 
-  if (!body.server?.trim()) {
+  if (!body?.server?.trim()) {
     throw createError({
       statusCode: 400,
       statusMessage: 'Kubernetes API server URL is required.',
     })
   }
 
-  if (!body.token?.trim()) {
+  if (!body?.token?.trim()) {
     throw createError({
       statusCode: 400,
       statusMessage: 'ServiceAccount token is required.',
@@ -35,8 +38,8 @@ export default defineEventHandler(async (event) => {
   }
 
   if (
-    !body.insecureSkipTlsVerify
-    && !body.certificate?.trim()
+    !body?.insecureSkipTlsVerify
+    && !body?.certificate?.trim()
   ) {
     throw createError({
       statusCode: 400,
@@ -46,8 +49,8 @@ export default defineEventHandler(async (event) => {
   }
 
   if (
-    body.allowWrite
-    && body.editableKinds.length === 0
+    body?.allowWrite
+    && editableKinds.length === 0
   ) {
     throw createError({
       statusCode: 400,
@@ -57,12 +60,15 @@ export default defineEventHandler(async (event) => {
   }
 
   const config: ClusterConfig = {
-    ...body,
     id: randomUUID(),
-    name: body.name.trim(),
-    server: body.server.trim(),
-    token: body.token.trim(),
-    certificate: body.certificate?.trim() ?? '',
+    name: body.name!.trim(),
+    server: body.server!.trim(),
+    token: body.token!.trim(),
+    certificate: body?.certificate?.trim() ?? '',
+    insecureSkipTlsVerify: Boolean(body?.insecureSkipTlsVerify),
+    allowWrite: Boolean(body?.allowWrite),
+    allowPodDelete: Boolean(body?.allowPodDelete),
+    editableKinds,
   }
 
   try {
@@ -75,11 +81,17 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  await saveCluster(config)
+  const dryRun = getQuery(event).dryRun === 'true'
+
+  if (!dryRun) {
+    await saveCluster(config)
+  }
 
   return {
     ok: true,
-    message: 'Cluster connected successfully.',
+    message: dryRun
+      ? 'Cluster connection tested successfully.'
+      : 'Cluster connected successfully.',
     cluster: {
       id: config.id,
       name: config.name,

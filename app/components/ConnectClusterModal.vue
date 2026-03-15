@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { EDITABLE_KINDS, type EditableKind } from '~~/shared/types/cluster'
+import { EDITABLE_KINDS, type Cluster, type EditableKind } from '~~/shared/types/cluster'
 
 const open = defineModel<boolean>('open', { required: true })
 
 const toast = useToast()
+const clusterStore = useClusterStore()
 
 const DEFAULTS = {
   name: '',
@@ -47,8 +48,9 @@ async function submit(dryRun: boolean): Promise<void> {
   result.value = null
 
   try {
-    const response = await $fetch('/api/clusters', {
+    const response = await $fetch<{ ok: boolean, message: string, cluster?: Cluster }>('/api/clusters', {
       method: 'POST',
+      query: { dryRun },
       body: {
         name: form.name,
         server: form.server,
@@ -74,6 +76,12 @@ async function submit(dryRun: boolean): Promise<void> {
     })
 
     if (!dryRun) {
+      await clusterStore.fetchClusters()
+
+      if (response.cluster) {
+        clusterStore.selectCluster(response.cluster)
+      }
+
       open.value = false
     }
   }
