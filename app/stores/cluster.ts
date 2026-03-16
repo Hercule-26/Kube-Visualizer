@@ -131,7 +131,9 @@ export const useClusterStore = defineStore('cluster', () => {
       }
     }
     finally {
-      isLoading.value = false
+      if (!currentCluster.value) {
+        isLoading.value = false
+      }
     }
   }
 
@@ -141,6 +143,7 @@ export const useClusterStore = defineStore('cluster', () => {
     }
 
     currentCluster.value = cluster
+    isLoading.value = true
 
     resetClusterData()
     resetFilters()
