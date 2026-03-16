@@ -257,28 +257,4 @@ const clusterStore = useClusterStore()
 const pod = computed(() =>
   clusterStore.selectedPodDetails ?? clusterStore.selectedPod,
 )
-
-
 </script>
-
-<style scoped lang="css">
-.kv-scroll {
-  scrollbar-color: #142144 transparent;
-}
-
-.kv-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-
-.kv-scroll::-webkit-scrollbar-thumb {
-  background: #142144;
-}
-
-html:not(.dark) .kv-scroll {
-  scrollbar-color: #67676861 transparent;
-}
-
-html:not(.dark) .kv-scroll::-webkit-scrollbar-thumb {
-  background: #67676861;
-}
-</style>

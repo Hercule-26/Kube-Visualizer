@@ -77,3 +77,56 @@ export function formatActivityTime(timestamp: string): string {
     second: '2-digit'
   })
 }
+
+export function formatRelativeTime(
+  timestamp: string,
+  referenceMs: number = Date.now()
+): string {
+  const date = new Date(timestamp)
+
+  if (Number.isNaN(date.getTime())) {
+    return timestamp
+  }
+
+  const diffSeconds = Math.max(
+    0,
+    Math.round((referenceMs - date.getTime()) / 1000)
+  )
+
+  if (diffSeconds < 5) {
+    return 'now'
+  }
+
+  if (diffSeconds < 60) {
+    return `${diffSeconds}s`
+  }
+
+  const diffMinutes = Math.round(diffSeconds / 60)
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes}m`
+  }
+
+  const diffHours = Math.round(diffMinutes / 60)
+
+  if (diffHours < 24) {
+    return `${diffHours}h`
+  }
+
+  const diffDays = Math.round(diffHours / 24)
+
+  return `${diffDays}d`
+}
+
+export function formatDate(value: string): string {
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  return new Intl.DateTimeFormat('fr-BE', {
+    dateStyle: 'short',
+    timeStyle: 'medium'
+  }).format(date)
+}
