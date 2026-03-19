@@ -23,6 +23,8 @@ interface ClusterWatcher {
   pending: boolean
   silentUntil: number
   podRestarts: Map<string, number>
+  podPhases: Map<string, string>
+  nodeReady: Map<string, boolean>
 }
 
 const watchers = new Map<string, ClusterWatcher>()
@@ -65,6 +67,10 @@ function podActivity(watcher: ClusterWatcher, phase: string, pod: any): void {
   const previousRestarts = watcher.podRestarts.get(uid) ?? restarts
   watcher.podRestarts.set(uid, restarts)
 
+  const podPhase = pod?.status?.phase ?? 'Unknown'
+  const previousPhase = watcher.podPhases.get(uid)
+  watcher.podPhases.set(uid, podPhase)
+
   if (Date.now() < watcher.silentUntil) {
     return
   }
@@ -76,6 +82,7 @@ function podActivity(watcher: ClusterWatcher, phase: string, pod: any): void {
 
   if (phase === 'DELETED') {
     watcher.podRestarts.delete(uid)
+    watcher.podPhases.delete(uid)
     sendActivity(watcher, 'warning', `Pod ${namespace}/${name} deleted`, resource)
     return
   }
@@ -94,20 +101,54 @@ function podActivity(watcher: ClusterWatcher, phase: string, pod: any): void {
     return
   }
 
-  sendActivity(watcher, 'info', `Pod ${namespace}/${name} updated`, resource)
+  if (previousPhase && previousPhase !== podPhase) {
+    const type: ClusterActivityType = podPhase === 'Failed' ? 'error' : 'info'
+    sendActivity(watcher, type, `Pod ${namespace}/${name} is now ${podPhase}`, resource)
+  }
 }
 
 function nodeActivity(watcher: ClusterWatcher, phase: string, node: any): void {
+  const name = node?.metadata?.name ?? 'unknown'
+  const resource = `Node/${name}`
+
+  if (phase === 'DELETED') {
+    watcher.nodeReady.delete(name)
+
+    if (Date.now() < watcher.silentUntil) {
+      return
+    }
+
+    sendActivity(watcher, 'warning', `Node ${name} deleted`, resource)
+    return
+  }
+
+  const ready = Boolean(
+    node?.status?.conditions?.some(
+      (condition: any) => condition.type === 'Ready' && condition.status === 'True',
+    ),
+  )
+  const previousReady = watcher.nodeReady.get(name)
+  watcher.nodeReady.set(name, ready)
+
   if (Date.now() < watcher.silentUntil) {
     return
   }
 
-  const name = node?.metadata?.name ?? 'unknown'
-  const resource = `Node/${name}`
-  const type: ClusterActivityType = phase === 'DELETED' ? 'warning' : 'info'
-  const action = phase === 'ADDED' ? 'added' : phase === 'DELETED' ? 'deleted' : 'updated'
+  if (phase === 'ADDED') {
+    sendActivity(watcher, 'success', `Node ${name} added`, resource)
+    return
+  }
 
-  sendActivity(watcher, type, `Node ${name} ${action}`, resource)
+  if (previousReady === undefined || previousReady === ready) {
+    return
+  }
+
+  sendActivity(
+    watcher,
+    ready ? 'success' : 'error',
+    `Node ${name} is ${ready ? 'ready' : 'not ready'}`,
+    resource,
+  )
 }
 
 async function refresh(clusterId: string): Promise<void> {
@@ -301,6 +342,8 @@ export async function subscribeToCluster(
       pending: false,
       silentUntil: Date.now() + 1500,
       podRestarts: new Map(),
+      podPhases: new Map(),
+      nodeReady: new Map(),
     }
     watchers.set(config.id, watcher)
   }
