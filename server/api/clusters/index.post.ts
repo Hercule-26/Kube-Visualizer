@@ -12,9 +12,6 @@ import { saveCluster } from '~~/server/utils/clusters'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody<Partial<ClusterConfig>>(event)
-  const editableKinds = Array.isArray(body?.editableKinds)
-    ? body.editableKinds
-    : []
 
   if (!body?.name?.trim()) {
     throw createError({
@@ -48,17 +45,6 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  if (
-    body?.allowWrite
-    && editableKinds.length === 0
-  ) {
-    throw createError({
-      statusCode: 400,
-      statusMessage:
-        'At least one editable kind must be selected when write access is enabled.',
-    })
-  }
-
   const config: ClusterConfig = {
     id: randomUUID(),
     name: body.name!.trim(),
@@ -66,9 +52,6 @@ export default defineEventHandler(async (event) => {
     token: body.token!.trim(),
     certificate: body?.certificate?.trim() ?? '',
     insecureSkipTlsVerify: Boolean(body?.insecureSkipTlsVerify),
-    allowWrite: Boolean(body?.allowWrite),
-    allowPodDelete: Boolean(body?.allowPodDelete),
-    editableKinds,
   }
 
   try {
@@ -97,9 +80,6 @@ export default defineEventHandler(async (event) => {
       name: config.name,
       server: config.server,
       insecureSkipTlsVerify: config.insecureSkipTlsVerify,
-      allowWrite: config.allowWrite,
-      allowPodDelete: config.allowPodDelete,
-      editableKinds: config.editableKinds,
     },
   }
 })

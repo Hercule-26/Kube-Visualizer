@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { EDITABLE_KINDS, type Cluster, type EditableKind } from '~~/shared/types/cluster'
+import type { Cluster } from '~~/shared/types/cluster'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -12,9 +12,6 @@ const DEFAULTS = {
   token: '',
   certificate: '',
   insecureSkipTlsVerify: false,
-  allowWrite: false,
-  allowPodDelete: false,
-  editableKinds: ['Deployment', 'StatefulSet'] as EditableKind[],
 }
 
 const form = reactive({ ...DEFAULTS })
@@ -27,14 +24,13 @@ const canSubmit = computed(() =>
   form.name.trim() !== ''
   && form.server.trim() !== ''
   && form.token.trim() !== ''
-  && (form.certificate.trim() !== '' || form.insecureSkipTlsVerify)
-  && (!form.allowWrite || form.editableKinds.length > 0),
+  && (form.certificate.trim() !== '' || form.insecureSkipTlsVerify),
 )
 
 watch(open, (isOpen) => {
   if (!isOpen)
     return
-  Object.assign(form, { ...DEFAULTS, editableKinds: [...DEFAULTS.editableKinds] })
+  Object.assign(form, { ...DEFAULTS })
   result.value = null
 })
 
@@ -57,9 +53,6 @@ async function submit(dryRun: boolean): Promise<void> {
         token: form.token,
         certificate: form.certificate,
         insecureSkipTlsVerify: form.insecureSkipTlsVerify,
-        allowWrite: form.allowWrite,
-        allowPodDelete: form.allowPodDelete,
-        editableKinds: form.editableKinds,
       },
     })
 
@@ -146,48 +139,6 @@ async function submit(dryRun: boolean): Promise<void> {
           label="Connect without verifying the certificate"
           description="Only for a cluster whose CA you cannot obtain. The connection stays encrypted, but nothing proves you are talking to the right server." />
 
-        <section class="space-y-3 rounded-lg border border-default p-3">
-          <div>
-            <h3 class="text-[11px] font-medium uppercase tracking-wide text-dimmed">
-              What may this app can do here?
-            </h3>
-            <p class="mt-0.5 text-[10.5px] leading-relaxed text-muted">
-              Saved with this cluster, so every other cluster keeps its own answer.
-              The cluster's RBAC still has to allow it too — both have to say yes.
-            </p>
-          </div>
-
-          <USwitch v-model="form.allowWrite" size="xs" color="info" label="Allow editing resources"
-            description="Scaling, container images, rolling restarts, applying edited YAML and cordoning nodes." />
-
-          <div v-if="form.allowWrite" class="pl-1">
-            <UFormField label="Kinds it may edit"
-              :hint="form.editableKinds.length === 0 ? 'pick at least one' : undefined"
-              :error="form.editableKinds.length === 0">
-              <USelectMenu v-model="form.editableKinds" :items="[...EDITABLE_KINDS]" multiple size="sm" class="w-full"
-                placeholder="Select kinds" />
-            </UFormField>
-
-            <p v-if="form.editableKinds.includes('Node') || form.editableKinds.includes('ConfigMap')"
-              class="mt-1.5 flex gap-1.5 rounded-md bg-warning/5 px-2 py-1.5 text-xs leading-relaxed text-muted">
-              <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3 shrink-0 text-warning" />
-              <span>
-                <template v-if="form.editableKinds.includes('Node')">
-                  <strong>Node</strong> is cluster-scoped: an edit there reaches the scheduler
-                  rather than one namespace.
-                </template>
-                <template v-if="form.editableKinds.includes('ConfigMap')">
-                  <strong>ConfigMap</strong> changes how every pod mounting it behaves, at their
-                  next restart rather than now.
-                </template>
-              </span>
-            </p>
-          </div>
-
-          <USwitch v-model="form.allowPodDelete" size="xs" color="info" label="Allow restarting pods"
-            description="Deletes a pod so its controller recreates it. Independent of editing." />
-        </section>
-
         <UAlert v-if="result" :color="result.ok ? 'success' : 'error'" variant="subtle"
           :icon="result.ok ? 'i-lucide-check' : 'i-lucide-triangle-alert'" :title="result.ok ? 'Reachable' : 'Refused'"
           :description="result.message" :ui="{ description: 'text-[11px] leading-relaxed' }" />
@@ -196,9 +147,6 @@ async function submit(dryRun: boolean): Promise<void> {
 
     <template #footer>
       <div class="flex w-full items-center gap-2">
-        <p class="text-[10px] text-dimmed">
-          Refused here or refused by RBAC amounts to the same thing.
-        </p>
         <UButton class="ml-auto" color="neutral" variant="ghost" size="sm" @click="open = false">
           Cancel
         </UButton>

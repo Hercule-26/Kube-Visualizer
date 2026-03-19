@@ -106,9 +106,6 @@ export async function getClusterState(
       name: config.name,
       server: config.server,
       insecureSkipTlsVerify: config.insecureSkipTlsVerify,
-      allowWrite: config.allowWrite,
-      allowPodDelete: config.allowPodDelete,
-      editableKinds: config.editableKinds,
     },
 
     nodes: nodes.items.map(node => ({
