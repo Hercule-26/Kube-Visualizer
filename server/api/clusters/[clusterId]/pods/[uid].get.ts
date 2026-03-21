@@ -2,8 +2,8 @@ import { createError, defineEventHandler, getRouterParam } from 'h3'
 import * as k8s from '@kubernetes/client-node'
 
 import { getCluster } from '~~/server/utils/clusters'
-import { createKubernetesClient } from '~~/server/utils/kubernetes'
-import type { PodDetails, PodPhase } from '~~/shared/types/cluster'
+import { createKubernetesClient, toPodPhase } from '~~/server/utils/kubernetes'
+import type { PodDetails } from '~~/shared/types/cluster'
 
 export default defineEventHandler(async (event): Promise<PodDetails> => {
   const clusterId = getRouterParam(event, 'clusterId')
@@ -28,19 +28,19 @@ export default defineEventHandler(async (event): Promise<PodDetails> => {
   }
 
   const statuses = pod.status?.containerStatuses ?? []
-  const crashLoop = statuses.some(
-    status => status.state?.waiting?.reason === 'CrashLoopBackOff',
-  )
   const owner = pod.metadata?.ownerReferences?.[0]
+  const phase = toPodPhase(pod)
+
+  const isReady = pod.status?.conditions?.some(
+    condition => condition.type === 'Ready' && condition.status === 'True',
+  ) ?? false
 
   return {
     uid: pod.metadata?.uid ?? '',
     name: pod.metadata?.name ?? '',
     namespace: pod.metadata?.namespace ?? '',
-    phase: (crashLoop ? 'CrashLoopBackOff' : pod.status?.phase ?? 'Unknown') as PodPhase,
-    ready: pod.status?.conditions?.some(
-      condition => condition.type === 'Ready' && condition.status === 'True',
-    ) ?? false,
+    phase,
+    ready: phase === 'Running' && isReady,
     node: pod.spec?.nodeName ?? null,
     workload: owner ? `${owner.kind}/${owner.name}` : null,
     restarts: statuses.reduce((total, status) => total + status.restartCount, 0),

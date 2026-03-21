@@ -1,13 +1,36 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 :root {
+  --status-running: #0ca30c;
+  --status-pending: #fab219;
+  --status-failed: #d03b3b;
+  --status-terminating: #a855f7;
+  --status-succeeded: #2a78d6;
+  --status-unknown: #898781;
+
   --canvas-bg: oklch(0.98 0.004 260);
   --canvas-grid: oklch(0.9 0.01 260);
+  --canvas-card: oklch(1 0 0);
+  --canvas-group: oklch(1 0 0);
+  --canvas-group-border: oklch(0.9 0.01 260);
 }
 
 .dark {
+  --status-succeeded: #3987e5;
+
   --canvas-bg: oklch(20.004% 0.02165 263.914);
   --canvas-grid: oklch(0.26 0.02 265);
+  --canvas-card: oklch(0.245 0.02 265);
+  --canvas-group: oklch(0.22 0.018 265);
+  --canvas-group-border: oklch(0.32 0.025 265);
+}
+
+.kv-card {
+  background-color: var(--canvas-card);
+}
+
+.kv-group {
+  background-color: var(--canvas-group);
 }
 
 .kv-canvas {

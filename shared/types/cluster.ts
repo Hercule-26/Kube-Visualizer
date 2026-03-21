@@ -23,6 +23,20 @@ export type PodPhase =
   | 'Terminating'
   | 'CrashLoopBackOff'
 
+export type ContainerState =
+  | 'running'
+  | 'waiting'
+  | 'terminated'
+  | 'unknown'
+
+export interface PodContainer {
+  name: string
+  image: string
+  state: ContainerState
+  ready: boolean
+  restarts: number
+}
+
 export interface Pod {
   uid: string
   name: string
@@ -34,6 +48,7 @@ export interface Pod {
   restarts: number
   createdAt: string
   startedAt: string | null
+  containers: PodContainer[]
 }
 
 export interface ClusterNode {

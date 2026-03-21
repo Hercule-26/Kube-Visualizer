@@ -3,6 +3,7 @@ import type {
   ClusterConfig,
   Cluster,
   ClusterNode,
+  ContainerState,
   Pod,
   PodPhase,
 } from '~~/shared/types/cluster'
@@ -13,32 +14,150 @@ export interface ClusterState {
   pods: Pod[]
 }
 
-function toPodPhase(pod: k8s.V1Pod): PodPhase {
-  const crashLoop = pod.status?.containerStatuses?.some(
-    status => status.state?.waiting?.reason === 'CrashLoopBackOff',
-  )
+const BROKEN_WAITING_REASONS = [
+  'ImagePullBackOff',
+  'ErrImagePull',
+  'InvalidImageName',
+  'CreateContainerConfigError',
+  'CreateContainerError',
+  'RunContainerError',
+]
 
-  if (crashLoop) {
+function waitingReasons(pod: k8s.V1Pod): string[] {
+  const statuses = [
+    ...(pod.status?.initContainerStatuses ?? []),
+    ...(pod.status?.containerStatuses ?? []),
+  ]
+
+  return statuses
+    .map(status => status.state?.waiting?.reason)
+    .filter((reason): reason is string => Boolean(reason))
+}
+
+export function toPodPhase(pod: k8s.V1Pod): PodPhase {
+  if (pod.metadata?.deletionTimestamp) {
+    return 'Terminating'
+  }
+
+  const reasons = waitingReasons(pod)
+
+  if (reasons.includes('CrashLoopBackOff')) {
     return 'CrashLoopBackOff'
   }
 
-  return (pod.status?.phase ?? 'Unknown') as PodPhase
+  if (reasons.some(reason => BROKEN_WAITING_REASONS.includes(reason))) {
+    return 'Failed'
+  }
+
+  const phase = pod.status?.phase
+
+  if (!phase) {
+    return 'Unknown'
+  }
+
+  if (phase === 'Running' || phase === 'Pending' || phase === 'Succeeded' || phase === 'Failed') {
+    return phase
+  }
+
+  return 'Unknown'
 }
 
-function toPod(pod: k8s.V1Pod): Pod {
+function toContainerState(status?: k8s.V1ContainerStatus): ContainerState {
+  if (status?.state?.running) {
+    return 'running'
+  }
+
+  if (status?.state?.waiting) {
+    return 'waiting'
+  }
+
+  if (status?.state?.terminated) {
+    return 'terminated'
+  }
+
+  return 'unknown'
+}
+
+function toWorkload(
+  pod: k8s.V1Pod,
+  replicaSetOwners: Map<string, string>,
+): string | null {
+  const owner = pod.metadata?.ownerReferences?.find(item => item.controller)
+    ?? pod.metadata?.ownerReferences?.[0]
+
+  if (!owner) {
+    return null
+  }
+
+  if (owner.kind === 'ReplicaSet') {
+    const namespace = pod.metadata?.namespace ?? ''
+    const deployment = replicaSetOwners.get(`${namespace}/${owner.name}`)
+      ?? owner.name.replace(/-[a-z0-9]{6,10}$/, '')
+
+    return `Deployment/${deployment}`
+  }
+
+  return `${owner.kind}/${owner.name}`
+}
+
+async function getReplicaSetOwners(
+  kubeConfig: k8s.KubeConfig,
+): Promise<Map<string, string>> {
+  const owners = new Map<string, string>()
+
+  try {
+    const appsApi = kubeConfig.makeApiClient(k8s.AppsV1Api)
+    const replicaSets = await appsApi.listReplicaSetForAllNamespaces()
+
+    for (const replicaSet of replicaSets.items) {
+      const owner = replicaSet.metadata?.ownerReferences?.find(
+        item => item.kind === 'Deployment',
+      )
+
+      if (replicaSet.metadata?.name && replicaSet.metadata.namespace && owner) {
+        owners.set(
+          `${replicaSet.metadata.namespace}/${replicaSet.metadata.name}`,
+          owner.name,
+        )
+      }
+    }
+  }
+  catch {
+    return owners
+  }
+
+  return owners
+}
+
+function toPod(pod: k8s.V1Pod, replicaSetOwners: Map<string, string>): Pod {
   const statuses = pod.status?.containerStatuses ?? []
-  const owner = pod.metadata?.ownerReferences?.[0]
+  const phase = toPodPhase(pod)
+
+  const isReady = pod.status?.conditions?.some(
+    condition => condition.type === 'Ready' && condition.status === 'True',
+  ) ?? false
+
+  const containers = (pod.spec?.containers ?? []).map((container) => {
+    const status = statuses.find(item => item.name === container.name)
+
+    return {
+      name: container.name,
+      image: container.image ?? status?.image ?? '',
+      state: toContainerState(status),
+      ready: status?.ready ?? false,
+      restarts: status?.restartCount ?? 0,
+    }
+  })
 
   return {
+    containers,
     uid: pod.metadata?.uid ?? '',
     name: pod.metadata?.name ?? '',
     namespace: pod.metadata?.namespace ?? '',
-    phase: toPodPhase(pod),
-    ready: pod.status?.conditions?.some(
-      condition => condition.type === 'Ready' && condition.status === 'True',
-    ) ?? false,
+    phase,
+    ready: phase === 'Running' && isReady,
     node: pod.spec?.nodeName ?? null,
-    workload: owner ? `${owner.kind}/${owner.name}` : null,
+    workload: toWorkload(pod, replicaSetOwners),
     restarts: statuses.reduce(
       (total, status) => total + status.restartCount,
       0,
@@ -95,9 +214,10 @@ export async function getClusterState(
     k8s.CoreV1Api,
   )
 
-  const [nodes, pods] = await Promise.all([
+  const [nodes, pods, replicaSetOwners] = await Promise.all([
     coreApi.listNode(),
     coreApi.listPodForAllNamespaces(),
+    getReplicaSetOwners(kubeConfig),
   ])
 
   return {
@@ -112,7 +232,7 @@ export async function getClusterState(
       name: node.metadata?.name ?? '',
     })),
 
-    pods: pods.items.map(toPod),
+    pods: pods.items.map(pod => toPod(pod, replicaSetOwners)),
   }
 }
 

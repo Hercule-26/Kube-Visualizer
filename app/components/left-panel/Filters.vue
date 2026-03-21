@@ -115,18 +115,11 @@
 
 <script setup lang="ts">
 import type { PodPhase } from '#shared/types/cluster'
-import { getPodStateColor } from '~/utils/format'
+import { POD_PHASES, getPodStateColor } from '~/utils/format'
 
 const clusterStore = useClusterStore()
 
-const PHASES: PodPhase[] = [
-  'Running',
-  'Pending',
-  'CrashLoopBackOff',
-  'Failed',
-  'Terminating',
-  'Succeeded'
-]
+const PHASES = POD_PHASES
 
 const namespaceOptions = computed(() => clusterStore.namespaceList)
 

@@ -25,7 +25,7 @@
       <div class="space-y-2 border-t border-default px-3 py-2">
         <ul class="space-y-1">
           <li
-            v-for="state in STATES"
+            v-for="state in POD_STATES"
             :key="state.phase"
             class="flex items-center gap-2 text-[10.5px]"
           >
@@ -68,38 +68,7 @@
 </template>
 
 <script setup lang="ts">
-const open = ref(false)
+import { POD_STATES } from '~/utils/format'
 
-const STATES = [
-  {
-    phase: 'Running',
-    label: 'Running',
-    hint: 'ready, serving traffic',
-    color: 'bg-emerald-500',
-  },
-  {
-    phase: 'Pending',
-    label: 'Pending / not ready',
-    hint: 'scheduling or starting',
-    color: 'bg-amber-500',
-  },
-  {
-    phase: 'CrashLoopBackOff',
-    label: 'Crash / failed',
-    hint: 'restarting in back-off',
-    color: 'bg-red-500',
-  },
-  {
-    phase: 'Terminating',
-    label: 'Terminating',
-    hint: 'being removed',
-    color: 'bg-purple-500',
-  },
-  {
-    phase: 'Succeeded',
-    label: 'Succeeded',
-    hint: 'completed job',
-    color: 'bg-blue-500',
-  },
-] as const
+const open = ref(false)
 </script>
