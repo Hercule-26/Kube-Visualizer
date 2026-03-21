@@ -5,6 +5,7 @@
     collapsible="offcanvas"
     variant="sidebar"
     :ui="{
+      root: '[--sidebar-width:20rem]',
       header: 'hidden',
       gap: 'h-full',
       body: 'p-0',

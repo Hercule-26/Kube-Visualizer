@@ -15,6 +15,8 @@
             v-for="pod in sortedPods"
             :key="pod.uid"
             class="border-b border-default last:border-none"
+            @pointerenter="clusterStore.hoveredWorkload = getWorkloadKey(pod)"
+            @pointerleave="clusterStore.hoveredWorkload = null"
           >
             <UButton
               type="button"
@@ -32,7 +34,8 @@
               <div class="flex w-full min-w-0 items-center gap-2">
                 <span
                   class="size-2 shrink-0 rounded-full"
-                  :class="getPodStateColor(pod.phase)"
+                  :class="getPodStateColor(pod.phase, pod.ready)"
+                  :title="getPodStateLabel(pod.phase, pod.ready)"
                 />
 
                 <div class="min-w-0 flex-1">
@@ -55,7 +58,7 @@
 
                 <span
                   v-if="pod.restarts > 0"
-                  class="shrink-0 font-mono text-[10px] text-dimmed"
+                  class="shrink-0 rounded-full bg-warning/15 px-1.5 py-0.5 font-mono text-[9px] font-medium text-warning"
                 >
                   ×{{ pod.restarts }}
                 </span>
@@ -76,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { getPodStateColor } from '~/utils/format'
+import { getPodStateColor, getPodStateLabel, getWorkloadKey } from '~/utils/format'
 
 const emit = defineEmits<{
   focusPod: [uid: string]

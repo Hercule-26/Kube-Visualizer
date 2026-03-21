@@ -28,8 +28,9 @@ export const useClusterStore = defineStore('cluster', () => {
   const nodeList = ref<ClusterNode[]>([])
   const selectedPod = ref<Pod | null>(null)
   const selectedPodDetails = ref<PodDetails | null>(null)
-  const loadingPodDetails = ref(false)
   const layoutMode = ref<LayoutMode>('flow')
+  const hoveredWorkload = ref<string | null>(null)
+  const selectedWorkload = ref<string | null>(null)
 
   const filters = ref<ClusterFilters>({
     search: '',
@@ -193,9 +194,17 @@ export const useClusterStore = defineStore('cluster', () => {
     activities.value = activities.value.slice(0, 300)
   }
 
-  async function fetchPodDetails(uid: string): Promise<void> {
-    loadingPodDetails.value = true
+  function focusPod(uid: string): void {
+    const pod = podList.value.find(item => item.uid === uid) ?? null
 
+    selectPod(pod)
+
+    if (pod) {
+      void fetchPodDetails(uid)
+    }
+  }
+
+  async function fetchPodDetails(uid: string): Promise<void> {
     try {
       selectedPodDetails.value = await $fetch<PodDetails>(
         `/api/clusters/${currentCluster.value?.id}/pods/${uid}`
@@ -203,8 +212,6 @@ export const useClusterStore = defineStore('cluster', () => {
     }
     catch {
       selectedPodDetails.value = null
-    } finally {
-      loadingPodDetails.value = false
     }
   }
 
@@ -225,8 +232,9 @@ export const useClusterStore = defineStore('cluster', () => {
     selectedPod,
     selectPod,
     selectedPodDetails,
-    loadingPodDetails,
     layoutMode,
+    hoveredWorkload,
+    selectedWorkload,
 
     filters,
     filtersActive,
@@ -234,10 +242,10 @@ export const useClusterStore = defineStore('cluster', () => {
 
     setPods,
     setNodes,
-    resetClusterData,
     activities,
     addActivity,
 
-    fetchPodDetails
+    fetchPodDetails,
+    focusPod
   }
 })
