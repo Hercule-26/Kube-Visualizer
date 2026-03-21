@@ -34,6 +34,8 @@
         <RightPanel
           v-model:open="rightPanelOpen"
         />
+
+        <WorkloadPanel />
       </div>
     </div>
   </UApp>
@@ -58,16 +60,12 @@ watch(() => clusterStore.currentCluster?.id, (clusterId, previousId) => {
 })
 
 function onFocusPod(uid: string): void {
-  clusterStore.selectPod(
-    clusterStore.podList.find(
-      pod => pod.uid === uid
-    ) ?? null,
-  )
-
-  if (clusterStore.selectedPod) {
-    clusterStore.fetchPodDetails(uid)
-  }
-
-  rightPanelOpen.value = true
+  clusterStore.focusPod(uid)
 }
+
+watch(() => clusterStore.selectedPod?.uid, (uid) => {
+  if (uid) {
+    rightPanelOpen.value = true
+  }
+})
 </script>
