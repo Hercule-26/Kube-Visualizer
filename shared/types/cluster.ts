@@ -61,12 +61,22 @@ export type ClusterActivityType =
   | 'warning'
   | 'error'
 
+export type ClusterActivityEvent =
+  | 'created'
+  | 'deleted'
+  | 'restarted'
+  | 'phase'
+  | 'ready'
+  | 'not-ready'
+
 export interface ClusterActivity {
   id: string
   timestamp: string
   type: ClusterActivityType
+  event: ClusterActivityEvent
   message: string
   resource?: string
+  phase?: PodPhase
 }
 
 export interface PodDetails {

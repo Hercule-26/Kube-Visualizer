@@ -67,54 +67,54 @@
     >
       <ul class="space-y-1.5 px-2 py-2">
         <li
-          v-for="activity in clusterStore.activities"
-          :key="activity.id"
+          v-for="row in activityRows"
+          :key="row.activity.id"
           class="relative flex items-start gap-2 overflow-hidden rounded-lg border border-default bg-elevated/35 py-2 pl-3 pr-2 transition-colors hover:bg-elevated"
         >
           <span
             class="absolute inset-y-0 left-0 w-0.5"
-            :class="getActivityStyle(activity.type).bar"
+            :class="row.style.bar"
           />
 
           <div
             class="flex size-6 shrink-0 items-center justify-center rounded-md"
-            :class="getActivityStyle(activity.type).background"
+            :class="row.style.background"
           >
             <UIcon
-              :name="getActivityStyle(activity.type).icon"
+              :name="row.style.icon"
               class="size-3"
-              :class="getActivityStyle(activity.type).text"
+              :class="row.style.text"
             />
           </div>
 
           <div class="min-w-0 flex-1">
             <div class="flex items-start justify-between gap-2">
               <p class="line-clamp-2 min-w-0 text-[10px] font-medium leading-4 text-highlighted">
-                {{ activity.message }}
+                {{ row.activity.message }}
               </p>
 
               <span
                 class="shrink-0 pt-0.5 font-mono text-[9px] text-dimmed"
-                :title="formatDate(activity.timestamp)"
+                :title="formatDate(row.activity.timestamp)"
               >
-                {{ formatRelativeTime(activity.timestamp, now) }}
+                {{ formatRelativeTime(row.activity.timestamp, now) }}
               </span>
             </div>
 
             <div class="mt-1 flex min-w-0 items-center gap-1.5">
               <span
-                class="rounded px-1 py-0.5 text-[8px] font-medium"
-                :class="[getActivityStyle(activity.type).background, getActivityStyle(activity.type).text]"
+                class="shrink-0 rounded px-1 py-0.5 text-[8px] font-medium"
+                :class="[row.style.background, row.style.text]"
               >
-                {{ getActivityStyle(activity.type).label }}
+                {{ row.style.label }}
               </span>
 
               <span
-                v-if="activity.resource"
+                v-if="row.activity.resource"
                 class="flex min-w-0 items-center gap-1 text-[8px] text-muted"
               >
-                <UIcon :name="getResourceIcon(activity.resource)" class="size-2.5 shrink-0" />
-                <span class="truncate font-mono">{{ activity.resource }}</span>
+                <UIcon :name="getResourceIcon(row.activity.resource)" class="size-2.5 shrink-0" />
+                <span class="truncate font-mono">{{ row.activity.resource }}</span>
               </span>
             </div>
           </div>
@@ -139,7 +139,13 @@
 </template>
 
 <script setup lang="ts">
-import type { ClusterActivityType } from '#shared/types/cluster'
+import type {
+  ClusterActivity,
+  ClusterActivityEvent,
+  ClusterActivityType,
+  PodPhase,
+} from '#shared/types/cluster'
+import { getPodState } from '~/utils/format'
 
 const clusterStore = useClusterStore()
 
@@ -195,49 +201,77 @@ const unreadActivities = computed(() =>
   )
 )
 
-function getActivityStyle(type: ClusterActivityType): {
+const EVENT_LABELS: Record<ClusterActivityEvent, string> = {
+  created: 'Created',
+  deleted: 'Deleted',
+  restarted: 'Restarted',
+  phase: 'Updated',
+  ready: 'Ready',
+  'not-ready': 'Not ready',
+}
+
+const EVENT_ICONS: Record<ClusterActivityEvent, string> = {
+  created: 'i-lucide-plus',
+  deleted: 'i-lucide-trash-2',
+  restarted: 'i-lucide-rotate-ccw',
+  phase: 'i-lucide-refresh-cw',
+  ready: 'i-lucide-heart-pulse',
+  'not-ready': 'i-lucide-heart-crack',
+}
+
+const PHASE_ICONS: Record<PodPhase, string> = {
+  Running: 'i-lucide-circle-play',
+  Pending: 'i-lucide-loader',
+  CrashLoopBackOff: 'i-lucide-flame',
+  Failed: 'i-lucide-circle-x',
+  Terminating: 'i-lucide-circle-minus',
+  Succeeded: 'i-lucide-circle-check',
+  Unknown: 'i-lucide-circle-help',
+}
+
+const TYPE_COLORS: Record<ClusterActivityType, {
+  background: string
+  text: string
+  bar: string
+}> = {
+  error: { background: 'bg-error/12', text: 'text-error', bar: 'bg-error' },
+  warning: { background: 'bg-warning/12', text: 'text-warning', bar: 'bg-warning' },
+  success: { background: 'bg-success/12', text: 'text-success', bar: 'bg-success' },
+  info: { background: 'bg-info/12', text: 'text-info', bar: 'bg-info' },
+}
+
+function getActivityStyle(activity: ClusterActivity): {
   label: string
   icon: string
   background: string
   text: string
   bar: string
 } {
-  switch (type) {
-    case 'error':
-      return {
-        label: 'Error',
-        icon: 'i-lucide-circle-x',
-        background: 'bg-error/12',
-        text: 'text-error',
-        bar: 'bg-error',
-      }
-    case 'warning':
-      return {
-        label: 'Warning',
-        icon: 'i-lucide-triangle-alert',
-        background: 'bg-warning/12',
-        text: 'text-warning',
-        bar: 'bg-warning',
-      }
-    case 'success':
-      return {
-        label: 'Created',
-        icon: 'i-lucide-circle-check',
-        background: 'bg-success/12',
-        text: 'text-success',
-        bar: 'bg-success',
-      }
-    case 'info':
-    default:
-      return {
-        label: 'Updated',
-        icon: 'i-lucide-refresh-cw',
-        background: 'bg-info/12',
-        text: 'text-info',
-        bar: 'bg-info',
-      }
+  if (activity.phase) {
+    const state = getPodState(activity.phase)
+
+    return {
+      label: activity.phase,
+      icon: PHASE_ICONS[activity.phase],
+      background: state.softColor,
+      text: state.textColor,
+      bar: state.color,
+    }
+  }
+
+  return {
+    label: EVENT_LABELS[activity.event] ?? 'Updated',
+    icon: EVENT_ICONS[activity.event] ?? 'i-lucide-refresh-cw',
+    ...(TYPE_COLORS[activity.type] ?? TYPE_COLORS.info),
   }
 }
+
+const activityRows = computed(() =>
+  clusterStore.activities.map(activity => ({
+    activity,
+    style: getActivityStyle(activity),
+  }))
+)
 
 function getResourceIcon(resource: string): string {
   if (resource.startsWith('Pod/')) {

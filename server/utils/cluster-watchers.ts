@@ -1,10 +1,12 @@
 import * as k8s from '@kubernetes/client-node'
 
 import type {
+  ClusterActivity,
   ClusterActivityType,
   ClusterConfig,
+  PodPhase,
 } from '~~/shared/types/cluster'
-import { createKubernetesClient, getClusterState } from '~~/server/utils/kubernetes'
+import { createKubernetesClient, getClusterState, toPodPhase } from '~~/server/utils/kubernetes'
 
 type SocketPeer = {
   id: string
@@ -23,7 +25,7 @@ interface ClusterWatcher {
   pending: boolean
   silentUntil: number
   podRestarts: Map<string, number>
-  podPhases: Map<string, string>
+  podPhases: Map<string, PodPhase>
   nodeReady: Map<string, boolean>
 }
 
@@ -38,15 +40,15 @@ function sendError(peer: SocketPeer, message: string): void {
   peer.send(JSON.stringify({ type: 'cluster.error', message }))
 }
 
+type ActivityPayload = Omit<ClusterActivity, 'id' | 'timestamp'>
+
 function sendActivity(
   watcher: ClusterWatcher,
-  type: ClusterActivityType,
-  message: string,
-  resource: string,
+  activity: ActivityPayload,
 ): void {
   const data = JSON.stringify({
     type: 'cluster.activity',
-    data: { type, message, resource },
+    data: activity,
   })
 
   for (const peer of watcher.peers) {
@@ -67,7 +69,7 @@ function podActivity(watcher: ClusterWatcher, phase: string, pod: any): void {
   const previousRestarts = watcher.podRestarts.get(uid) ?? restarts
   watcher.podRestarts.set(uid, restarts)
 
-  const podPhase = pod?.status?.phase ?? 'Unknown'
+  const podPhase = toPodPhase(pod)
   const previousPhase = watcher.podPhases.get(uid)
   watcher.podPhases.set(uid, podPhase)
 
@@ -76,35 +78,63 @@ function podActivity(watcher: ClusterWatcher, phase: string, pod: any): void {
   }
 
   if (phase === 'ADDED') {
-    sendActivity(watcher, 'success', `Pod ${namespace}/${name} created`, resource)
+    sendActivity(watcher, {
+      type: 'success',
+      event: 'created',
+      message: `Pod ${namespace}/${name} created`,
+      resource,
+    })
     return
   }
 
   if (phase === 'DELETED') {
     watcher.podRestarts.delete(uid)
     watcher.podPhases.delete(uid)
-    sendActivity(watcher, 'warning', `Pod ${namespace}/${name} deleted`, resource)
-    return
-  }
 
-  const crashLoop = statuses.some(
-    (status: any) => status.state?.waiting?.reason === 'CrashLoopBackOff',
-  )
-
-  if (crashLoop) {
-    sendActivity(watcher, 'error', `Pod ${namespace}/${name} is in CrashLoopBackOff`, resource)
+    sendActivity(watcher, {
+      type: 'warning',
+      event: 'deleted',
+      message: `Pod ${namespace}/${name} deleted`,
+      resource,
+    })
     return
   }
 
   if (restarts > previousRestarts) {
-    sendActivity(watcher, 'warning', `Pod ${namespace}/${name} restarted`, resource)
+    sendActivity(watcher, {
+      type: 'warning',
+      event: 'restarted',
+      message: `Pod ${namespace}/${name} restarted`,
+      resource,
+    })
     return
   }
 
   if (previousPhase && previousPhase !== podPhase) {
-    const type: ClusterActivityType = podPhase === 'Failed' ? 'error' : 'info'
-    sendActivity(watcher, type, `Pod ${namespace}/${name} is now ${podPhase}`, resource)
+    sendActivity(watcher, {
+      type: phaseActivityType(podPhase),
+      event: 'phase',
+      message: `Pod ${namespace}/${name} is now ${podPhase}`,
+      resource,
+      phase: podPhase,
+    })
   }
+}
+
+function phaseActivityType(phase: PodPhase): ClusterActivityType {
+  if (phase === 'Failed' || phase === 'CrashLoopBackOff') {
+    return 'error'
+  }
+
+  if (phase === 'Terminating') {
+    return 'warning'
+  }
+
+  if (phase === 'Running' || phase === 'Succeeded') {
+    return 'success'
+  }
+
+  return 'info'
 }
 
 function nodeActivity(watcher: ClusterWatcher, phase: string, node: any): void {
@@ -118,7 +148,12 @@ function nodeActivity(watcher: ClusterWatcher, phase: string, node: any): void {
       return
     }
 
-    sendActivity(watcher, 'warning', `Node ${name} deleted`, resource)
+    sendActivity(watcher, {
+      type: 'warning',
+      event: 'deleted',
+      message: `Node ${name} deleted`,
+      resource,
+    })
     return
   }
 
@@ -135,7 +170,12 @@ function nodeActivity(watcher: ClusterWatcher, phase: string, node: any): void {
   }
 
   if (phase === 'ADDED') {
-    sendActivity(watcher, 'success', `Node ${name} added`, resource)
+    sendActivity(watcher, {
+      type: 'success',
+      event: 'created',
+      message: `Node ${name} added`,
+      resource,
+    })
     return
   }
 
@@ -143,12 +183,12 @@ function nodeActivity(watcher: ClusterWatcher, phase: string, node: any): void {
     return
   }
 
-  sendActivity(
-    watcher,
-    ready ? 'success' : 'error',
-    `Node ${name} is ${ready ? 'ready' : 'not ready'}`,
+  sendActivity(watcher, {
+    type: ready ? 'success' : 'error',
+    event: ready ? 'ready' : 'not-ready',
+    message: `Node ${name} is ${ready ? 'ready' : 'not ready'}`,
     resource,
-  )
+  })
 }
 
 async function refresh(clusterId: string): Promise<void> {
