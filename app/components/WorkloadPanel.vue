@@ -1,30 +1,58 @@
 <template>
-  <USlideover
+  <USidebar
     v-model:open="open"
-    :ui="{ content: 'sm:max-w-lg' }"
+    side="right"
+    collapsible="offcanvas"
+    variant="sidebar"
+    :ui="{
+      root: '[--sidebar-width:20rem]',
+      header: 'hidden',
+      gap: 'h-full',
+      body: 'p-0',
+      container: 'absolute inset-y-0 h-full'
+    }"
   >
-    <template #header>
-      <div v-if="workload" class="min-w-0 flex-1">
-        <p class="truncate text-sm font-medium text-highlighted">
-          {{ workload.name }}
-        </p>
+    <div v-if="workload" class="flex h-full min-h-0 w-full flex-col overflow-hidden">
+      <div class="shrink-0 space-y-2.5 border-b border-default p-3.5">
+        <div class="flex items-center justify-between gap-2">
+          <p class="text-[10px] font-medium uppercase tracking-wide text-dimmed">
+            Workload details
+          </p>
 
-        <p class="mt-0.5 truncate text-[11px] text-dimmed">
-          {{ workload.namespace }} · {{ workload.kind }} · {{ readyCount }}/{{ workload.pods.length }} ready
-        </p>
+          <UButton
+            icon="i-lucide-x"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            aria-label="Close workload details"
+            @click="open = false"
+          />
+        </div>
+
+        <div class="min-w-0">
+          <p
+            class="truncate font-mono text-[12px] font-semibold text-highlighted"
+            :title="workload.name"
+          >
+            {{ workload.name }}
+          </p>
+
+          <p class="mt-0.5 truncate text-[10px] text-dimmed">
+            {{ workload.namespace }} · {{ workload.kind }} · {{ readyCount }}/{{ workload.pods.length }} ready
+          </p>
+        </div>
       </div>
-    </template>
 
-    <template #body>
-      <div v-if="workload" class="flex h-full min-h-0 flex-col">
+      <div class="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
         <UTabs
           v-model="activeTab"
           :items="TABS"
           :content="false"
           size="xs"
+          variant="link"
           color="info"
           class="mb-3 shrink-0"
-          :ui="{ list: 'justify-between' }"
+          :ui="{ trigger: 'grow' }"
         />
 
         <div class="min-h-0 flex-1 overflow-y-auto kv-scroll">
@@ -37,8 +65,8 @@
           <WorkloadPanelYaml v-else :workload="workload" />
         </div>
       </div>
-    </template>
-  </USlideover>
+    </div>
+  </USidebar>
 </template>
 
 <script setup lang="ts">
@@ -84,7 +112,7 @@ const open = computed({
   get: () => workload.value !== null,
   set: (value: boolean) => {
     if (!value) {
-      clusterStore.selectedWorkload = null
+      clusterStore.selectWorkload(null)
     }
   },
 })

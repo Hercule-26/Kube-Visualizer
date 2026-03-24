@@ -31,6 +31,7 @@ export const useClusterStore = defineStore('cluster', () => {
   const layoutMode = ref<LayoutMode>('flow')
   const hoveredWorkload = ref<string | null>(null)
   const selectedWorkload = ref<string | null>(null)
+  const podPanelOpen = ref(false)
 
   const filters = ref<ClusterFilters>({
     search: '',
@@ -198,10 +199,25 @@ export const useClusterStore = defineStore('cluster', () => {
     const pod = podList.value.find(item => item.uid === uid) ?? null
 
     selectPod(pod)
+    selectedWorkload.value = null
+    podPanelOpen.value = pod !== null
 
     if (pod) {
       void fetchPodDetails(uid)
     }
+  }
+
+  function selectWorkload(key: string | null): void {
+    selectedWorkload.value = key
+
+    if (key) {
+      podPanelOpen.value = false
+    }
+  }
+
+  function clearSelection(): void {
+    selectPod(null)
+    selectedWorkload.value = null
   }
 
   async function fetchPodDetails(uid: string): Promise<void> {
@@ -235,6 +251,9 @@ export const useClusterStore = defineStore('cluster', () => {
     layoutMode,
     hoveredWorkload,
     selectedWorkload,
+    selectWorkload,
+    podPanelOpen,
+    clearSelection,
 
     filters,
     filtersActive,

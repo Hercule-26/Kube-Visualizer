@@ -28,7 +28,7 @@
     <div v-else class="flex flex-wrap items-start gap-5">
       <GraphPodGroup v-for="group in groups" :key="group.title" :title="group.title" :subtitle="subtitle"
         :workloads="group.workloads" :active-key="activeKey" @select="emit('select', $event)"
-        @open="clusterStore.selectedWorkload = $event" @hover="clusterStore.hoveredWorkload = $event" />
+        @open="clusterStore.selectWorkload($event)" @hover="clusterStore.hoveredWorkload = $event" />
     </div>
   </div>
 </template>

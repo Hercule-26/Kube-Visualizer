@@ -1,6 +1,6 @@
 <template>
   <div class="absolute inset-0 overflow-hidden">
-    <GraphCanvas ref="canvas" @background="clusterStore.selectPod(null)">
+    <GraphCanvas ref="canvas" @background="clusterStore.clearSelection()">
       <GraphPodBoard @select="clusterStore.focusPod($event)" />
     </GraphCanvas>
 

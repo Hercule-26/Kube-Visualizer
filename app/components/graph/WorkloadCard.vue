@@ -4,7 +4,7 @@
     :class="[
       holdsSelection ? 'border-info' : 'border-default',
       dimmed ? 'opacity-30' : 'opacity-100',
-    ]" @click="emit('open', workload.key)" @pointerenter="emit('hover', workload.key)"
+    ]" @click.stop="emit('open', workload.key)" @pointerenter="emit('hover', workload.key)"
     @pointerleave="emit('hover', null)">
     <span class="absolute inset-x-0 top-0 h-1" :class="accentColor" />
 
@@ -31,7 +31,7 @@
 
     <div class="mt-3 flex flex-wrap items-center justify-center gap-2">
       <button v-for="pod in workload.pods" :key="pod.uid" type="button" :title="podTitle(pod)" :aria-label="pod.name"
-        class="size-3 rounded-full transition-all hover:scale-125 hover:cursor-pointer" :class="[
+        class="size-3 rounded-full transition-all hover:scale-125" :class="[
           getPodStateColor(pod.phase, pod.ready),
           isSettling(pod) ? 'animate-pulse' : '',
           pod.restarts > 0 ? 'ring-2 ring-(--status-pending)' : '',

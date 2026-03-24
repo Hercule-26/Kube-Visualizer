@@ -32,7 +32,7 @@
         </main>
 
         <RightPanel
-          v-model:open="rightPanelOpen"
+          v-model:open="clusterStore.podPanelOpen"
         />
 
         <WorkloadPanel />
@@ -43,7 +43,6 @@
 
 <script setup lang="ts">
 const sidebarOpen = ref(true)
-const rightPanelOpen = ref(false)
 
 const clusterStore = useClusterStore()
 const socket = useWebSocket()
@@ -62,10 +61,4 @@ watch(() => clusterStore.currentCluster?.id, (clusterId, previousId) => {
 function onFocusPod(uid: string): void {
   clusterStore.focusPod(uid)
 }
-
-watch(() => clusterStore.selectedPod?.uid, (uid) => {
-  if (uid) {
-    rightPanelOpen.value = true
-  }
-})
 </script>
