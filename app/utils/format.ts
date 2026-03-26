@@ -164,6 +164,47 @@ export function formatRelativeTime(
   return `${diffDays}d`
 }
 
+export function formatAge(timestamp: string | null): string {
+  if (!timestamp) {
+    return '—'
+  }
+
+  const date = new Date(timestamp)
+
+  if (Number.isNaN(date.getTime())) {
+    return timestamp
+  }
+
+  const seconds = Math.max(
+    0,
+    Math.floor((Date.now() - date.getTime()) / 1000)
+  )
+
+  if (seconds < 60) {
+    return `${seconds}s`
+  }
+
+  const minutes = Math.floor(seconds / 60)
+
+  if (minutes < 60) {
+    return `${minutes}m`
+  }
+
+  const hours = Math.floor(minutes / 60)
+
+  if (hours < 24) {
+    return minutes % 60 > 0
+      ? `${hours}h${minutes % 60}m`
+      : `${hours}h`
+  }
+
+  const days = Math.floor(hours / 24)
+
+  return hours % 24 > 0
+    ? `${days}d${hours % 24}h`
+    : `${days}d`
+}
+
 export function formatDate(value: string): string {
   const date = new Date(value)
 

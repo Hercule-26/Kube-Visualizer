@@ -2,7 +2,12 @@ import { createError, defineEventHandler, getRouterParam } from 'h3'
 import * as k8s from '@kubernetes/client-node'
 
 import { getCluster } from '~~/server/utils/clusters'
-import { createKubernetesClient, toPodPhase } from '~~/server/utils/kubernetes'
+import {
+  createKubernetesClient,
+  getReplicaSetOwners,
+  toPodPhase,
+  toWorkload,
+} from '~~/server/utils/kubernetes'
 import type { PodDetails } from '~~/shared/types/cluster'
 
 export default defineEventHandler(async (event): Promise<PodDetails> => {
@@ -19,8 +24,14 @@ export default defineEventHandler(async (event): Promise<PodDetails> => {
     throw createError({ statusCode: 404, statusMessage: 'Cluster not found.' })
   }
 
-  const api = createKubernetesClient(cluster).makeApiClient(k8s.CoreV1Api)
-  const pods = await api.listPodForAllNamespaces()
+  const kubeConfig = createKubernetesClient(cluster)
+  const api = kubeConfig.makeApiClient(k8s.CoreV1Api)
+
+  const [pods, replicaSetOwners] = await Promise.all([
+    api.listPodForAllNamespaces(),
+    getReplicaSetOwners(kubeConfig),
+  ])
+
   const pod = pods.items.find(item => item.metadata?.uid === uid)
 
   if (!pod) {
@@ -28,7 +39,6 @@ export default defineEventHandler(async (event): Promise<PodDetails> => {
   }
 
   const statuses = pod.status?.containerStatuses ?? []
-  const owner = pod.metadata?.ownerReferences?.[0]
   const phase = toPodPhase(pod)
 
   const isReady = pod.status?.conditions?.some(
@@ -42,7 +52,7 @@ export default defineEventHandler(async (event): Promise<PodDetails> => {
     phase,
     ready: phase === 'Running' && isReady,
     node: pod.spec?.nodeName ?? null,
-    workload: owner ? `${owner.kind}/${owner.name}` : null,
+    workload: toWorkload(pod, replicaSetOwners),
     restarts: statuses.reduce((total, status) => total + status.restartCount, 0),
     createdAt: pod.metadata?.creationTimestamp?.toString() ?? '',
     startedAt: pod.status?.startTime?.toString() ?? null,

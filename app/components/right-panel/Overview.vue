@@ -40,164 +40,60 @@
           </p>
         </div>
       </div>
-
-      <div class="mt-1.5 flex items-center justify-between rounded-lg border border-default bg-elevated/50 px-3 py-2">
-        <span class="flex items-center gap-1.5 text-[10px] text-dimmed">
-          <UIcon name="i-lucide-rotate-cw" class="size-3" />
-          Restarts
-        </span>
-
-        <span
-          class="font-mono text-[11px] font-semibold"
-          :class="pod.restarts > 0 ? 'text-warning' : 'text-highlighted'"
-        >
-          {{ pod.restarts }}
-        </span>
-      </div>
     </section>
 
     <USeparator />
 
     <section>
-      <p class="mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-dimmed">
-        <UIcon name="i-lucide-fingerprint" class="size-3" />
-        Identity
+      <p class="mb-2 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-dimmed">
+        <UIcon name="i-lucide-info" class="size-3" />
+        Details
       </p>
 
-      <div class="space-y-2 rounded-lg border border-default bg-elevated/50 px-3 py-2.5">
-        <div class="flex min-w-0 justify-between gap-3">
-          <span class="shrink-0 text-[10px] text-dimmed">
-            Name
-          </span>
+      <dl class="grid grid-cols-2 gap-x-4 gap-y-2.5">
+        <div v-for="fact in facts" :key="fact.label" class="min-w-0">
+          <dt class="text-[10px] text-dimmed">
+            {{ fact.label }}
+          </dt>
 
-          <span class="truncate text-right font-mono text-[10px] text-muted" :title="pod.name">
-            {{ pod.name }}
-          </span>
-        </div>
-
-        <div class="flex min-w-0 justify-between gap-3">
-          <span class="shrink-0 text-[10px] text-dimmed">
-            Namespace
-          </span>
-
-          <span class="truncate text-right font-mono text-[10px] text-muted" :title="pod.namespace">
-            {{ pod.namespace }}
-          </span>
-        </div>
-
-        <div class="flex min-w-0 justify-between gap-3">
-          <span class="shrink-0 text-[10px] text-dimmed">
-            UID
-          </span>
-
-          <span class="min-w-0 truncate text-right font-mono text-[9px] text-muted" :title="pod.uid">
-            {{ pod.uid }}
-          </span>
-        </div>
-      </div>
-    </section>
-
-    <USeparator />
-
-    <section>
-      <p class="mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-dimmed">
-        <UIcon name="i-lucide-layers" class="size-3" />
-        Workload
-      </p>
-
-      <div class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-default bg-elevated/50 px-3 py-2.5">
-        <span class="shrink-0 text-[10px] text-dimmed">
-          Owner
-        </span>
-
-        <span
-          v-if="pod.workload"
-          class="truncate text-right font-mono text-[10px] text-muted"
-          :title="pod.workload"
-        >
-          {{ pod.workload }}
-        </span>
-
-        <span v-else class="text-[10px] italic text-dimmed">
-          None
-        </span>
-      </div>
-    </section>
-
-    <USeparator />
-
-    <section>
-      <p class="mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-dimmed">
-        <UIcon name="i-lucide-server" class="size-3" />
-        Scheduling
-      </p>
-
-      <div class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-default bg-elevated/50 px-3 py-2.5">
-        <span class="shrink-0 text-[10px] text-dimmed">
-          Node
-        </span>
-
-        <span
-          v-if="pod.node"
-          class="truncate text-right font-mono text-[10px] text-muted"
-          :title="pod.node"
-        >
-          {{ pod.node }}
-        </span>
-
-        <span v-else class="text-[10px] italic text-dimmed">
-          Unscheduled
-        </span>
-      </div>
-    </section>
-
-    <USeparator />
-
-    <section>
-      <p class="mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-dimmed">
-        <UIcon name="i-lucide-clock" class="size-3" />
-        Timestamps
-      </p>
-
-      <div class="space-y-2 rounded-lg border border-default bg-elevated/50 px-3 py-2.5">
-        <div class="flex min-w-0 justify-between gap-3">
-          <span class="shrink-0 text-[10px] text-dimmed">
-            Created
-          </span>
-
-          <span class="truncate text-right font-mono text-[9px] text-muted" :title="pod.createdAt">
-            {{ formatDate(pod.createdAt) }}
-          </span>
-        </div>
-
-        <div class="flex min-w-0 justify-between gap-3">
-          <span class="shrink-0 text-[10px] text-dimmed">
-            Started
-          </span>
-
-          <span
-            v-if="pod.startedAt"
-            class="truncate text-right font-mono text-[9px] text-muted"
-            :title="pod.startedAt"
+          <dd
+            class="mt-0.5 truncate text-[11px] font-medium text-highlighted"
+            :class="fact.mono ? 'font-mono' : ''"
+            :title="fact.value"
           >
-            {{ formatDate(pod.startedAt) }}
-          </span>
-
-          <span v-else class="text-[10px] italic text-dimmed">
-            Not started
-          </span>
+            {{ fact.value }}
+          </dd>
         </div>
-      </div>
+      </dl>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { getPodStateColor } from '~/utils/format'
+import { formatAge, getPodStateColor } from '~/utils/format'
 
 const clusterStore = useClusterStore()
 
-const pod = computed(() =>
-  clusterStore.selectedPodDetails ?? clusterStore.selectedPod,
-)
+const pod = computed(() => clusterStore.selectedPod)
+
+const facts = computed(() => {
+  const current = pod.value
+
+  if (!current) {
+    return []
+  }
+
+  const details = clusterStore.selectedPodDetails
+
+  return [
+    { label: 'Namespace', value: current.namespace, mono: true },
+    { label: 'Node', value: current.node ?? 'unscheduled', mono: true },
+    { label: 'Pod IP', value: details?.ip ?? '—', mono: true },
+    { label: 'Controller', value: current.workload ?? 'standalone', mono: true },
+    { label: 'QoS class', value: details?.qosClass ?? '—', mono: false },
+    { label: 'Created', value: formatAge(current.createdAt), mono: true },
+    { label: 'Started', value: formatAge(current.startedAt), mono: true },
+    { label: 'Restarts', value: String(current.restarts), mono: true },
+  ]
+})
 </script>

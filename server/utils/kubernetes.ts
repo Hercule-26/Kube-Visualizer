@@ -78,7 +78,7 @@ function toContainerState(status?: k8s.V1ContainerStatus): ContainerState {
   return 'unknown'
 }
 
-function toWorkload(
+export function toWorkload(
   pod: k8s.V1Pod,
   replicaSetOwners: Map<string, string>,
 ): string | null {
@@ -100,7 +100,7 @@ function toWorkload(
   return `${owner.kind}/${owner.name}`
 }
 
-async function getReplicaSetOwners(
+export async function getReplicaSetOwners(
   kubeConfig: k8s.KubeConfig,
 ): Promise<Map<string, string>> {
   const owners = new Map<string, string>()
