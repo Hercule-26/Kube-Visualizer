@@ -23,7 +23,7 @@
               color="neutral"
               variant="ghost"
               block
-              class="w-full rounded-md px-3 py-2 text-left hover:cursor-pointer"
+              class="w-full rounded-md px-3 py-2 text-left"
               :class="
                 clusterStore.selectedPod?.uid === pod.uid
                   ? 'bg-elevated'

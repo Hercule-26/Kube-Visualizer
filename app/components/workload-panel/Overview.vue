@@ -38,7 +38,7 @@
         <li v-for="pod in workload.pods" :key="pod.uid">
           <button
             type="button"
-            class="flex w-full items-center gap-2 rounded-lg border bg-elevated/50 px-3 py-2 text-left transition-colors hover:cursor-pointer hover:bg-elevated"
+            class="flex w-full items-center gap-2 rounded-lg border bg-elevated/50 px-3 py-2 text-left transition-colors hover:bg-elevated"
             :class="clusterStore.selectedPod?.uid === pod.uid ? 'border-info' : 'border-default'"
             @click="emit('select', pod.uid)"
           >

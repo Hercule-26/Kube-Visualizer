@@ -29,7 +29,7 @@
         multiple
         size="sm"
         placeholder="All namespaces"
-        class="w-full hover:cursor-pointer"
+        class="w-full"
       />
     </div>
 
@@ -44,7 +44,7 @@
         multiple
         size="sm"
         placeholder="All nodes"
-        class="w-full cursor-pointer"
+        class="w-full"
       />
     </div>
 
@@ -61,7 +61,7 @@
           size="xs"
           variant="ghost"
           color="neutral"
-          class="group rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all duration-150 hover:cursor-pointer"
+          class="group rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all duration-150"
           :class="
             clusterStore.filters.phases.includes(phase)
               ? 'border-accented bg-elevated'
