@@ -30,18 +30,23 @@
       ref="logBox"
       class="min-h-0 flex-1 overflow-auto rounded-lg border border-default bg-elevated/50 p-2.5 kv-scroll"
     >
-      <p v-if="logError" class="font-mono text-[10px] leading-relaxed text-error">
-        {{ logError }}
-      </p>
+      <pre
+        v-if="logLines.length > 0"
+        class="whitespace-pre-wrap break-all font-mono text-[10px] leading-relaxed text-muted"
+      >{{ logText }}</pre>
 
-      <p v-else-if="logLines.length === 0" class="text-[10px] italic text-dimmed">
+      <p v-else-if="!logError" class="text-[10px] italic text-dimmed">
         Waiting for output…
       </p>
 
-      <pre
-        v-else
-        class="whitespace-pre-wrap break-all font-mono text-[10px] leading-relaxed text-muted"
-      >{{ logText }}</pre>
+      <p
+        v-if="logError"
+        class="flex items-center gap-1.5 text-[10px] text-warning"
+        :class="logLines.length > 0 ? 'mt-2 border-t border-default pt-2' : ''"
+      >
+        <UIcon name="i-lucide-unplug" class="size-3 shrink-0" />
+        {{ logError }}
+      </p>
     </div>
 
     <p class="mt-1.5 shrink-0 text-[9px] text-dimmed">
@@ -59,18 +64,23 @@
           ref="modalLogBox"
           class="h-[70vh] overflow-auto rounded-lg border border-default bg-elevated/50 p-3 kv-scroll"
         >
-          <p v-if="logError" class="font-mono text-xs leading-relaxed text-error">
-            {{ logError }}
-          </p>
+          <pre
+            v-if="logLines.length > 0"
+            class="whitespace-pre-wrap break-all font-mono text-xs leading-relaxed text-muted"
+          >{{ logText }}</pre>
 
-          <p v-else-if="logLines.length === 0" class="text-xs italic text-dimmed">
+          <p v-else-if="!logError" class="text-xs italic text-dimmed">
             Waiting for output…
           </p>
 
-          <pre
-            v-else
-            class="whitespace-pre-wrap break-all font-mono text-xs leading-relaxed text-muted"
-          >{{ logText }}</pre>
+          <p
+            v-if="logError"
+            class="flex items-center gap-1.5 text-xs text-warning"
+            :class="logLines.length > 0 ? 'mt-3 border-t border-default pt-3' : ''"
+          >
+            <UIcon name="i-lucide-unplug" class="size-3.5 shrink-0" />
+            {{ logError }}
+          </p>
         </div>
       </template>
     </UModal>
@@ -84,9 +94,7 @@ const props = defineProps<{
 
 const clusterStore = useClusterStore()
 
-const pod = computed(() =>
-  clusterStore.selectedPodDetails ?? clusterStore.selectedPod,
-)
+const pod = computed(() => clusterStore.selectedPod)
 
 const MAX_LOG_LINES = 500
 
@@ -128,6 +136,12 @@ function stopLogs(): void {
   logStreaming.value = false
 }
 
+function endLogs(message: string): void {
+  logError.value = message
+  stopLogs()
+  scrollLogsToBottom()
+}
+
 function scrollLogsToBottom(): void {
   nextTick(() => {
     if (logBox.value) {
@@ -167,13 +181,11 @@ function startLogs(): void {
   }
 
   logSource.addEventListener('failed', (message) => {
-    logError.value = (message as MessageEvent).data
-    stopLogs()
+    endLogs((message as MessageEvent).data)
   })
 
   logSource.onerror = () => {
-    logError.value = 'Lost the connection to the pod logs.'
-    stopLogs()
+    endLogs('Lost the connection to the pod logs.')
   }
 }
 
