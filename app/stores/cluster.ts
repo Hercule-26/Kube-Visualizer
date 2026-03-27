@@ -26,6 +26,7 @@ export const useClusterStore = defineStore('cluster', () => {
 
   const podList = ref<Pod[]>([])
   const nodeList = ref<ClusterNode[]>([])
+  const metricsAvailable = ref(true)
   const selectedPodUid = ref<string | null>(null)
   const selectedPod = ref<Pod | null>(null)
   const selectedPodDetails = ref<PodDetails | null>(null)
@@ -106,6 +107,8 @@ export const useClusterStore = defineStore('cluster', () => {
 
   const activities = ref<ClusterActivity[]>([])
 
+  const toasts = useAppToast()
+
   async function fetchClusters(): Promise<void> {
     isLoading.value = true
 
@@ -153,6 +156,7 @@ export const useClusterStore = defineStore('cluster', () => {
   }
 
   function resetClusterData(): void {
+    metricsAvailable.value = true
     podList.value = []
     nodeList.value = []
     selectedPodUid.value = null
@@ -176,6 +180,17 @@ export const useClusterStore = defineStore('cluster', () => {
 
   function setNodes(nodes: ClusterNode[]): void {
     nodeList.value = nodes
+  }
+
+  function setMetricsAvailable(available: boolean): void {
+    if (metricsAvailable.value && !available) {
+      toasts.warn(
+        'Metrics unavailable',
+        'metrics-server is not installed on this cluster, so pod usage cannot be shown.',
+      )
+    }
+
+    metricsAvailable.value = available
   }
 
   function resetFilters(): void {
@@ -241,6 +256,11 @@ export const useClusterStore = defineStore('cluster', () => {
     }
     catch {
       selectedPodDetails.value = null
+
+      toasts.warn(
+        'Pod details unavailable',
+        'The pod could not be read. Its ip and QoS class are missing.',
+      )
     }
   }
 
@@ -274,6 +294,8 @@ export const useClusterStore = defineStore('cluster', () => {
 
     setPods,
     setNodes,
+    metricsAvailable,
+    setMetricsAvailable,
     activities,
     addActivity,
 

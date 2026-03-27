@@ -6,7 +6,12 @@ import type {
   ClusterConfig,
   PodPhase,
 } from '~~/shared/types/cluster'
-import { createKubernetesClient, getClusterState, toPodPhase } from '~~/server/utils/kubernetes'
+import {
+  createKubernetesClient,
+  getClusterState,
+  kubernetesErrorMessage,
+  toPodPhase,
+} from '~~/server/utils/kubernetes'
 
 type SocketPeer = {
   id: string
@@ -212,9 +217,11 @@ async function refresh(clusterId: string): Promise<void> {
       sendState(peer, state)
     }
   }
-  catch {
+  catch (error) {
+    const message = kubernetesErrorMessage(error)
+
     for (const peer of watcher.peers) {
-      sendError(peer, 'Unable to retrieve cluster information.')
+      sendError(peer, message)
     }
   }
   finally {
@@ -278,6 +285,29 @@ function watchEnded(clusterId: string): void {
   scheduleReconnect(clusterId)
 }
 
+function startWatch(
+  watch: k8s.Watch,
+  clusterId: string,
+  path: string,
+  onEvent: (watcher: ClusterWatcher, phase: string, object: any) => void,
+): Promise<AbortController | null> {
+  return watch
+    .watch(path, {}, (phase, object) => {
+      if (phase === 'BOOKMARK') {
+        return
+      }
+
+      const watcher = watchers.get(clusterId)
+
+      if (watcher) {
+        onEvent(watcher, phase, object)
+      }
+
+      scheduleRefresh(clusterId)
+    }, () => watchEnded(clusterId))
+    .catch(() => null)
+}
+
 async function start(clusterId: string): Promise<void> {
   const watcher = watchers.get(clusterId)
 
@@ -291,53 +321,34 @@ async function start(clusterId: string): Promise<void> {
   const client = createKubernetesClient(watcher.config)
   const watch = new k8s.Watch(client)
 
-  try {
-    const [podController, nodeController] = await Promise.all([
-      watch.watch('/api/v1/pods', {}, (phase, pod) => {
-        if (phase !== 'BOOKMARK') {
-          const currentWatcher = watchers.get(clusterId)
+  const [podController, nodeController] = await Promise.all([
+    startWatch(watch, clusterId, '/api/v1/pods', podActivity),
+    startWatch(watch, clusterId, '/api/v1/nodes', nodeActivity),
+  ])
 
-          if (currentWatcher) {
-            podActivity(currentWatcher, phase, pod)
-          }
+  const currentWatcher = watchers.get(clusterId)
 
-          scheduleRefresh(clusterId)
-        }
-      }, () => watchEnded(clusterId)),
-      watch.watch('/api/v1/nodes', {}, (phase, node) => {
-        if (phase !== 'BOOKMARK') {
-          const currentWatcher = watchers.get(clusterId)
+  if (!currentWatcher) {
+    podController?.abort()
+    nodeController?.abort()
+    return
+  }
 
-          if (currentWatcher) {
-            nodeActivity(currentWatcher, phase, node)
-          }
+  currentWatcher.starting = false
 
-          scheduleRefresh(clusterId)
-        }
-      }, () => watchEnded(clusterId)),
-    ])
+  if (!podController || !nodeController || currentWatcher.peers.size === 0) {
+    podController?.abort()
+    nodeController?.abort()
 
-    const currentWatcher = watchers.get(clusterId)
-
-    if (!currentWatcher || currentWatcher.peers.size === 0) {
-      podController.abort()
-      nodeController.abort()
-      return
+    if (currentWatcher.peers.size > 0) {
+      scheduleReconnect(clusterId)
     }
 
-    currentWatcher.starting = false
-    currentWatcher.podController = podController
-    currentWatcher.nodeController = nodeController
+    return
   }
-  catch {
-    const currentWatcher = watchers.get(clusterId)
 
-    if (currentWatcher) {
-      currentWatcher.starting = false
-    }
-
-    scheduleReconnect(clusterId)
-  }
+  currentWatcher.podController = podController
+  currentWatcher.nodeController = nodeController
 }
 
 function stop(clusterId: string): void {
@@ -394,8 +405,8 @@ export async function subscribeToCluster(
   try {
     sendState(peer, await getClusterState(config))
   }
-  catch {
-    sendError(peer, 'Unable to retrieve cluster information.')
+  catch (error) {
+    sendError(peer, kubernetesErrorMessage(error))
   }
 
   void start(config.id)

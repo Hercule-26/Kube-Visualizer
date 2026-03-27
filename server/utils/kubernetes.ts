@@ -12,6 +12,7 @@ export interface ClusterState {
   cluster: Cluster
   nodes: ClusterNode[]
   pods: Pod[]
+  metricsAvailable: boolean
 }
 
 const BROKEN_WAITING_REASONS = [
@@ -205,6 +206,20 @@ export function createKubernetesClient(
   return kubeConfig
 }
 
+async function hasMetricsApi(kubeConfig: k8s.KubeConfig): Promise<boolean> {
+  try {
+    const apisApi = kubeConfig.makeApiClient(k8s.ApisApi)
+    const groups = await apisApi.getAPIVersions()
+
+    return (groups.groups ?? []).some(
+      group => group.name === 'metrics.k8s.io',
+    )
+  }
+  catch {
+    return false
+  }
+}
+
 export async function getClusterState(
   config: ClusterConfig,
 ): Promise<ClusterState> {
@@ -214,11 +229,29 @@ export async function getClusterState(
     k8s.CoreV1Api,
   )
 
-  const [nodes, pods, replicaSetOwners] = await Promise.all([
-    coreApi.listNode(),
-    coreApi.listPodForAllNamespaces(),
-    getReplicaSetOwners(kubeConfig),
+  const nodesRequest = coreApi.listNode()
+  const podsRequest = coreApi.listPodForAllNamespaces()
+  const ownersRequest = getReplicaSetOwners(kubeConfig)
+  const metricsRequest = hasMetricsApi(kubeConfig)
+
+  const [nodesResult, podsResult] = await Promise.allSettled([
+    nodesRequest,
+    podsRequest,
   ])
+
+  const replicaSetOwners = await ownersRequest
+  const metricsAvailable = await metricsRequest
+
+  if (nodesResult.status === 'rejected') {
+    throw nodesResult.reason
+  }
+
+  if (podsResult.status === 'rejected') {
+    throw podsResult.reason
+  }
+
+  const nodes = nodesResult.value
+  const pods = podsResult.value
 
   return {
     cluster: {
@@ -233,6 +266,8 @@ export async function getClusterState(
     })),
 
     pods: pods.items.map(pod => toPod(pod, replicaSetOwners)),
+
+    metricsAvailable,
   }
 }
 

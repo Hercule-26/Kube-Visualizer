@@ -14,6 +14,7 @@ interface SocketState {
   status: SocketStatus
   socket: WebSocket | null
   reconnectTimer: ReturnType<typeof setTimeout> | null
+  clusterFailed: boolean
 }
 
 interface SocketMessage {
@@ -26,6 +27,7 @@ interface SocketMessage {
 interface ClusterState {
   pods: Pod[]
   nodes: ClusterNode[]
+  metricsAvailable: boolean
 }
 
 export function useWebSocket() {
@@ -33,9 +35,11 @@ export function useWebSocket() {
     status: 'disconnected',
     socket: null,
     reconnectTimer: null,
+    clusterFailed: false,
   }))
 
   const clusterStore = useClusterStore()
+  const toasts = useAppToast()
 
   const status = computed(
     () => socketState.value.status,
@@ -75,6 +79,13 @@ export function useWebSocket() {
     socketState.value.socket = ws
 
     ws.onopen = () => {
+      if (socketState.value.status === 'reconnecting') {
+        toasts.ok(
+          'Live updates restored',
+          'The connection to the server is back.',
+        )
+      }
+
       socketState.value.status = 'connected'
       refresh()
     }
@@ -90,6 +101,13 @@ export function useWebSocket() {
 
       if (socketState.value.status === 'disconnected') {
         return
+      }
+
+      if (socketState.value.status === 'connected') {
+        toasts.warn(
+          'Live updates interrupted',
+          'The connection to the server dropped. Trying to reconnect…',
+        )
       }
 
       socketState.value.status = 'reconnecting'
@@ -190,17 +208,34 @@ export function useWebSocket() {
       return
     }
     const state = data as ClusterState
+
     clusterStore.setPods(state.pods)
     clusterStore.setNodes(state.nodes)
+    clusterStore.setMetricsAvailable(state.metricsAvailable)
     clusterStore.setClusterLoading(false)
+
+    if (socketState.value.clusterFailed) {
+      socketState.value.clusterFailed = false
+
+      toasts.ok(
+        'Cluster reachable again',
+        'Cluster data is being received.',
+      )
+    }
   }
 
   function handleClusterError(message?: string): void {
     clusterStore.setClusterLoading(false)
 
-    console.error(
-      '[Cluster] Error:',
-      message ?? 'Unknown cluster error',
+    if (socketState.value.clusterFailed) {
+      return
+    }
+
+    socketState.value.clusterFailed = true
+
+    toasts.fail(
+      'Cluster unreachable',
+      message ?? 'The cluster could not be read.',
     )
   }
 

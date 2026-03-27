@@ -43,7 +43,11 @@
               <UIcon name="i-lucide-gauge" class="mx-auto size-7 text-dimmed" />
 
               <p class="mt-2 text-xs text-dimmed">
-                Metrics aren't available yet.
+                {{
+                  clusterStore.metricsAvailable
+                    ? "Metrics aren't available yet."
+                    : 'metrics-server is not installed on this cluster.'
+                }}
               </p>
             </div>
           </template>
