@@ -64,9 +64,7 @@ const open = defineModel<boolean>('open', {
 
 const clusterStore = useClusterStore()
 
-const pod = computed(() =>
-  clusterStore.selectedPodDetails ?? clusterStore.selectedPod,
-)
+const pod = computed(() => clusterStore.selectedPod)
 
 const TABS = [
   { label: 'Overview', icon: 'i-lucide-layout-panel-left', value: 'overview', slot: 'overview' },

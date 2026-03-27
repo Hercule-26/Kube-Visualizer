@@ -26,6 +26,7 @@ export const useClusterStore = defineStore('cluster', () => {
 
   const podList = ref<Pod[]>([])
   const nodeList = ref<ClusterNode[]>([])
+  const selectedPodUid = ref<string | null>(null)
   const selectedPod = ref<Pod | null>(null)
   const selectedPodDetails = ref<PodDetails | null>(null)
   const layoutMode = ref<LayoutMode>('flow')
@@ -154,6 +155,7 @@ export const useClusterStore = defineStore('cluster', () => {
   function resetClusterData(): void {
     podList.value = []
     nodeList.value = []
+    selectedPodUid.value = null
     selectedPod.value = null
     selectedPodDetails.value = null
   }
@@ -164,6 +166,12 @@ export const useClusterStore = defineStore('cluster', () => {
 
   function setPods(pods: Pod[]): void {
     podList.value = pods
+
+    const live = pods.find(pod => pod.uid === selectedPodUid.value)
+
+    if (live) {
+      selectedPod.value = live
+    }
   }
 
   function setNodes(nodes: ClusterNode[]): void {
@@ -180,8 +188,13 @@ export const useClusterStore = defineStore('cluster', () => {
     }
   }
 
-  function selectPod(pod: Pod | null): void {
-    selectedPod.value = pod
+  function selectPod(uid: string | null): void {
+    selectedPodUid.value = uid
+
+    selectedPod.value = uid
+      ? podList.value.find(pod => pod.uid === uid) ?? null
+      : null
+
     selectedPodDetails.value = null
   }
 
@@ -198,7 +211,7 @@ export const useClusterStore = defineStore('cluster', () => {
   function focusPod(uid: string): void {
     const pod = podList.value.find(item => item.uid === uid) ?? null
 
-    selectPod(pod)
+    selectPod(pod ? uid : null)
     selectedWorkload.value = null
     podPanelOpen.value = pod !== null
 

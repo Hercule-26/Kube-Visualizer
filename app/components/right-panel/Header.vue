@@ -57,7 +57,5 @@ const emit = defineEmits<{
 
 const clusterStore = useClusterStore()
 
-const pod = computed(() =>
-  clusterStore.selectedPodDetails ?? clusterStore.selectedPod,
-)
+const pod = computed(() => clusterStore.selectedPod)
 </script>
