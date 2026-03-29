@@ -4,6 +4,23 @@
       <GraphPodBoard @select="clusterStore.focusPod($event)" />
     </GraphCanvas>
 
+    <div
+      v-if="emptyMessage && !clusterStore.isLoading"
+      class="pointer-events-none absolute inset-0 flex items-center justify-center p-6"
+    >
+      <div class="kv-card w-80 rounded-xl border border-default px-5 py-8 text-center shadow-sm">
+        <UIcon :name="emptyMessage.icon" class="mx-auto size-8 text-dimmed" />
+
+        <p class="mt-2 text-sm font-medium text-highlighted">
+          {{ emptyMessage.title }}
+        </p>
+
+        <p class="mt-1 text-xs text-dimmed">
+          {{ emptyMessage.hint }}
+        </p>
+      </div>
+    </div>
+
     <div v-if="clusterStore.isLoading"
       class="absolute inset-0 z-20 flex items-center justify-center bg-canvas-bg/30 backdrop-blur-[2px]">
       <div
@@ -34,6 +51,26 @@
 
 <script setup lang="ts">
 const clusterStore = useClusterStore()
+
+const emptyMessage = computed(() => {
+  if (!clusterStore.currentCluster) {
+    return {
+      icon: 'i-lucide-layers-3',
+      title: 'No cluster selected',
+      hint: 'Select a cluster to load its data.',
+    }
+  }
+
+  if (clusterStore.visiblePods.length === 0) {
+    return {
+      icon: 'i-lucide-box',
+      title: 'No pod to display',
+      hint: 'No pod matches these filters.',
+    }
+  }
+
+  return null
+})
 
 const canvas = ref<{
   zoomIn: () => void

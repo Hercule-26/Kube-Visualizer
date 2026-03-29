@@ -22,7 +22,7 @@ export const useClusterStore = defineStore('cluster', () => {
   const clusterList = ref<Cluster[]>([])
   const currentCluster = ref<Cluster | null>(null)
 
-  const isLoading = ref(false)
+  const isLoading = ref(true)
 
   const podList = ref<Pod[]>([])
   const nodeList = ref<ClusterNode[]>([])

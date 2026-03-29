@@ -1,31 +1,6 @@
 <template>
   <div class="w-max p-8">
-    <div v-if="!clusterStore.currentCluster"
-      class="kv-card w-96 rounded-xl border border-default px-5 py-8 text-center">
-      <UIcon name="i-lucide-layers-3" class="mx-auto size-8 text-dimmed" />
-
-      <p class="mt-2 text-sm font-medium text-highlighted">
-        No cluster selected
-      </p>
-
-      <p class="mt-1 text-xs text-dimmed">
-        Select a cluster to load its data.
-      </p>
-    </div>
-
-    <div v-else-if="groups.length === 0" class="kv-card w-96 rounded-xl border border-default px-5 py-8 text-center">
-      <UIcon name="i-lucide-box" class="mx-auto size-8 text-dimmed" />
-
-      <p class="mt-2 text-sm font-medium text-highlighted">
-        No pod to display
-      </p>
-
-      <p class="mt-1 text-xs text-dimmed">
-        No pod matches these filters.
-      </p>
-    </div>
-
-    <div v-else class="flex flex-wrap items-start gap-5">
+    <div v-if="groups.length > 0" class="flex flex-wrap items-start gap-5">
       <GraphPodGroup v-for="group in groups" :key="group.title" :title="group.title" :subtitle="subtitle"
         :workloads="group.workloads" :active-key="activeKey" @select="emit('select', $event)"
         @open="clusterStore.selectWorkload($event)" @hover="clusterStore.hoveredWorkload = $event" />
