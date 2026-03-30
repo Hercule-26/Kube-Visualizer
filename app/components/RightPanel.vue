@@ -5,7 +5,7 @@
     collapsible="offcanvas"
     variant="sidebar"
     :ui="{
-      root: '[--sidebar-width:20rem]',
+      root: '[--sidebar-width:25rem]',
       header: 'hidden',
       gap: 'h-full',
       body: 'p-0',
@@ -55,6 +55,10 @@
           <template #logs>
             <RightPanelLogs :active="open && activeTab === 'logs'" />
           </template>
+
+          <template #yaml>
+            <RightPanelYaml />
+          </template>
         </UTabs>
       </div>
     </div>
@@ -74,6 +78,7 @@ const TABS = [
   { label: 'Overview', icon: 'i-lucide-layout-panel-left', value: 'overview', slot: 'overview' },
   { label: 'Metrics', icon: 'i-lucide-gauge', value: 'metrics', slot: 'metrics' },
   { label: 'Logs', icon: 'i-lucide-file-text', value: 'logs', slot: 'logs' },
+  { label: 'YAML', icon: 'i-lucide-file-code', value: 'yaml', slot: 'yaml' },
 ]
 
 const activeTab = ref('overview')

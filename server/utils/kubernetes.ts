@@ -168,6 +168,14 @@ function toPod(pod: k8s.V1Pod, replicaSetOwners: Map<string, string>): Pod {
   }
 }
 
+export function toManifest(resource: Record<string, any>): Record<string, any> {
+  const metadata = { ...resource.metadata }
+
+  delete metadata.managedFields
+
+  return JSON.parse(JSON.stringify({ ...resource, metadata }))
+}
+
 export function createKubernetesClient(
   config: ClusterConfig,
 ): k8s.KubeConfig {

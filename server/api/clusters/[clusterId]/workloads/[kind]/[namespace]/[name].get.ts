@@ -2,7 +2,7 @@ import { createError, defineEventHandler, getRouterParam } from 'h3'
 import * as k8s from '@kubernetes/client-node'
 
 import { getCluster } from '~~/server/utils/clusters'
-import { createKubernetesClient } from '~~/server/utils/kubernetes'
+import { createKubernetesClient, toManifest } from '~~/server/utils/kubernetes'
 
 const APPS_KINDS = ['Deployment', 'StatefulSet', 'DaemonSet']
 
@@ -34,7 +34,7 @@ export default defineEventHandler(async (event) => {
   try {
     const resource = await readWorkload(appsApi, kind, namespace, name)
 
-    return { yaml: k8s.dumpYaml(clean(resource)) }
+    return { yaml: k8s.dumpYaml(toManifest(resource)) }
   }
   catch {
     throw createError({ statusCode: 404, statusMessage: 'Workload not found.' })
@@ -56,12 +56,4 @@ function readWorkload(
   }
 
   return appsApi.readNamespacedDeployment({ namespace, name })
-}
-
-function clean(resource: Record<string, any>): Record<string, any> {
-  const metadata = { ...resource.metadata }
-
-  delete metadata.managedFields
-
-  return { ...resource, metadata }
 }
