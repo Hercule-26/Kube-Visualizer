@@ -168,6 +168,53 @@ function toPod(pod: k8s.V1Pod, replicaSetOwners: Map<string, string>): Pod {
   }
 }
 
+const CPU_UNITS: Record<string, number> = {
+  n: 1 / 1_000_000,
+  u: 1 / 1000,
+  m: 1,
+  '': 1000,
+}
+
+const MEMORY_UNITS: Record<string, number> = {
+  Ki: 1024,
+  Mi: 1024 ** 2,
+  Gi: 1024 ** 3,
+  Ti: 1024 ** 4,
+  K: 1000,
+  M: 1000 ** 2,
+  G: 1000 ** 3,
+  T: 1000 ** 4,
+  '': 1,
+}
+
+export function parseCpu(value?: string): number {
+  if (!value) {
+    return 0
+  }
+
+  const match = /^([0-9.]+)([a-zA-Z]*)$/.exec(value.trim())
+
+  if (!match) {
+    return 0
+  }
+
+  return Number(match[1]) * (CPU_UNITS[match[2] ?? ''] ?? 1000)
+}
+
+export function parseMemory(value?: string): number {
+  if (!value) {
+    return 0
+  }
+
+  const match = /^([0-9.]+)([a-zA-Z]*)$/.exec(value.trim())
+
+  if (!match) {
+    return 0
+  }
+
+  return Number(match[1]) * (MEMORY_UNITS[match[2] ?? ''] ?? 1)
+}
+
 export function toManifest(resource: Record<string, any>): Record<string, any> {
   const metadata = { ...resource.metadata }
 

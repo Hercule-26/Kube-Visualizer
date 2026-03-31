@@ -39,17 +39,7 @@
           </template>
 
           <template #metrics>
-            <div class="px-3 py-8 text-center">
-              <UIcon name="i-lucide-gauge" class="mx-auto size-7 text-dimmed" />
-
-              <p class="mt-2 text-xs text-dimmed">
-                {{
-                  clusterStore.metricsAvailable
-                    ? "Metrics aren't available yet."
-                    : 'metrics-server is not installed on this cluster.'
-                }}
-              </p>
-            </div>
+            <RightPanelMetrics :active="open && activeTab === 'metrics'" />
           </template>
 
           <template #logs>

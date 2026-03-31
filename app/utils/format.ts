@@ -205,6 +205,32 @@ export function formatAge(timestamp: string | null): string {
     : `${days}d`
 }
 
+export function formatCpu(millicores: number): string {
+  if (millicores < 1) {
+    return `${millicores.toFixed(2)}m`
+  }
+
+  if (millicores < 1000) {
+    return `${Math.round(millicores)}m`
+  }
+
+  return `${(millicores / 1000).toFixed(2)} cores`
+}
+
+export function formatBytes(bytes: number): string {
+  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
+
+  let value = bytes
+  let unit = 0
+
+  while (value >= 1024 && unit < units.length - 1) {
+    value = value / 1024
+    unit = unit + 1
+  }
+
+  return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`
+}
+
 export function formatDate(value: string): string {
   const date = new Date(value)
 

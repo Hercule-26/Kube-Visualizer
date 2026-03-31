@@ -51,6 +51,20 @@ export interface Pod {
   containers: PodContainer[]
 }
 
+export interface PodContainerMetrics {
+  name: string
+  cpuMillicores: number
+  memoryBytes: number
+  cpuLimitMillicores: number | null
+  memoryLimitBytes: number | null
+}
+
+export interface PodMetrics {
+  timestamp: string
+  window: string
+  containers: PodContainerMetrics[]
+}
+
 export interface ClusterNode {
   name: string
 }
